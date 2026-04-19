@@ -1,0 +1,22 @@
+{
+  "name": "virtual-keyboard",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "USERNAME": "${localEnv:DEVCONTAINER_USERNAME:dev}",
+      "USER_UID": "${localEnv:DEVCONTAINER_USER_UID:1000}",
+      "USER_GID": "${localEnv:DEVCONTAINER_USER_GID:1000}"
+    }
+  },
+  "remoteUser": "${localEnv:DEVCONTAINER_USERNAME:dev}",
+  "containerUser": "${localEnv:DEVCONTAINER_USERNAME:dev}",
+  "mounts": [
+    "source=devhome-${localEnv:OWNER_USERNAME:shared},target=/home/${localEnv:DEVCONTAINER_USERNAME:dev},type=volume"
+  ],
+  "features": {
+    "ghcr.io/sourecode/devcontainer-features/nvm:1": {},
+    "ghcr.io/sourecode/devcontainer-features/claude-code:1": {},
+    "ghcr.io/sourecode/devcontainer-features/rtk:1": {},
+    "ghcr.io/sourecode/devcontainer-features/context-mode:1": {}
+  }
+}

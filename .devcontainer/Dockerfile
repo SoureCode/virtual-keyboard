@@ -9,7 +9,7 @@ ENV DEVCONTAINER=true
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        sudo ca-certificates curl git openssh-client && \
+        sudo ca-certificates curl git openssh-client yq vim && \
     apt-get clean && rm -rf /var/lib/apt/lists/* && \
     userdel -r ubuntu 2>/dev/null || true && \
     groupadd --gid "${USER_GID}" "${USERNAME}" && \

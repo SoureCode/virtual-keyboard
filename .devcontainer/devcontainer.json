@@ -18,5 +18,12 @@
     "ghcr.io/sourecode/devcontainer-features/claude-code:1": {},
     "ghcr.io/sourecode/devcontainer-features/rtk:1": {},
     "ghcr.io/sourecode/devcontainer-features/context-mode:1": {}
+  },
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Vite",
+      "onAutoForward": "notify"
+    }
   }
 }

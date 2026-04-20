@@ -30,7 +30,7 @@ export default defineConfig(({ command }) => {
   if (command === "build") {
     return {
       ...common,
-      base: process.env["BASE_PATH"] ?? "/",
+      base: (process.env["BASE_PATH"] ?? "/").replace(/\/?$/, "/"),
       build: {
         outDir: resolve(here, "dist"),
         emptyOutDir: true,

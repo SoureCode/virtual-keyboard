@@ -41,7 +41,6 @@ export const topbarRows: TopbarRow[] = [
     [
       { label: "Ctrl", action: { kind: "modifier", modifier: "ctrl" }, wide: true },
       { label: "Alt", action: { kind: "modifier", modifier: "alt" }, wide: true },
-      { label: "Super", action: { kind: "modifier", modifier: "meta" }, wide: true },
     ],
     [
       { label: "←", action: { kind: "cursor", direction: "left" } },

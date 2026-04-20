@@ -204,15 +204,16 @@ export class VirtualKeyboard extends HTMLElement {
       case "cursor": {
         const mods = this.#state.modifiers;
         const withCtrl = mods.has("ctrl");
-        const withShift = mods.has("shift");
+        const withAlt = mods.has("alt");
+        const withShift = this.#state.shift !== "off";
         this.#adapter.execute({
           kind: "moveCursor",
           direction: a.direction,
-          word: withCtrl,
+          word: withCtrl || withAlt,
           select: withShift,
         });
-        this.#clearStickyModifiers();
-        return !withCtrl;
+        if (!withShift) this.#clearStickyModifiers();
+        return !(withCtrl || withAlt);
       }
       case "insert":
         this.#adapter.execute({ kind: "raw", data: "\x1b[2~" });

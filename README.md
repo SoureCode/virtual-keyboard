@@ -11,14 +11,15 @@ A framework-agnostic on-screen keyboard as a web component. Drops into any page 
 - Three layers per layout: letters, numbers, symbols
 - Shift states: **off**, **one-shot**, **locked** (double-tap to lock)
 - Long-press alternates popover (accents, fractions, quotes, currencies) — viewport-clamped so it never clips
-- Scrollable two-row topbar with `Esc`, `F1`–`F12`, `Ins` / `Del`, `Home` / `End` / `PgUp` / `PgDn`, `Tab`, `Ctrl` / `Alt` / `Super`, and arrow keys. Touch inertia + mouse drag + wheel scroll, no scrollbar
-- Sticky modifiers — `Ctrl` / `Alt` / `Super` arm for one-shot; double-tap to lock. `Ctrl+Arrow` jumps by word and doesn't auto-repeat
+- Scrollable two-row topbar with `Esc`, `F1`–`F12`, `Ins` / `Del`, `Home` / `End` / `PgUp` / `PgDn`, `Tab`, `Ctrl` / `Alt`, and arrow keys. Touch inertia + mouse drag + wheel scroll, no scrollbar
+- Sticky modifiers — `Ctrl` / `Alt` arm for one-shot; double-tap to lock. `Ctrl+Arrow` / `Alt+Arrow` jumps by word and doesn't auto-repeat
+- Text selection via `Shift+Arrow`, `Shift+Ctrl+Arrow` (word), and `Shift+Home/End/PgUp/PgDn` — shift stays active across presses so selection keeps extending
 - Hold-to-repeat for character keys, space, backspace, and arrow-cluster keys (≈28 keys/sec after a 450 ms delay)
 - Arrow keys preserve the desired text column across up/down (native-editor behaviour)
 - Click-through focus: tapping any key never moves focus away from the editor
 - Output adapters:
   - **native** — writes into focused `<input>`, `<textarea>`, or `contenteditable`; dispatches proper `InputEvent` / `KeyboardEvent`
-  - **terminal** — emits VT/ANSI sequences (`\r`, `\x7f`, `\x1b[A`, `\x1b[1;5D`, `F1`–`F12`, etc.) via a user-supplied `send(data)` callback; wire it to `term.paste()`, `term.onData`, or any pty/WS
+  - **terminal** — emits VT/ANSI sequences (`\r`, `\x7f`, `\x1b[A`, `\x1b[1;5D` word, `\x1b[1;2D` select, `\x1b[1;6D` word-select, `F1`–`F12`, etc.) via a user-supplied `send(data)` callback; wire it to `term.paste()`, `term.onData`, or any pty/WS
 
 ## Usage
 

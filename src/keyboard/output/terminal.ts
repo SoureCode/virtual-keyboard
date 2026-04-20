@@ -9,6 +9,13 @@ export type TerminalAdapterOptions = {
   cursorSequences?: Partial<Record<CursorDirection, string>>;
 };
 
+const ARROW: Record<"up" | "down" | "left" | "right", string> = {
+  up: "A",
+  down: "B",
+  right: "C",
+  left: "D",
+};
+
 const DEFAULT_CURSOR: Record<CursorDirection, string> = {
   up: "\x1b[A",
   down: "\x1b[B",
@@ -20,11 +27,14 @@ const DEFAULT_CURSOR: Record<CursorDirection, string> = {
   pageDown: "\x1b[6~",
 };
 
-const WORD_CURSOR: Partial<Record<CursorDirection, string>> = {
-  up: "\x1b[1;5A",
-  down: "\x1b[1;5B",
-  right: "\x1b[1;5C",
-  left: "\x1b[1;5D",
+const modifiedCursor = (direction: CursorDirection, word: boolean, select: boolean): string | null => {
+  if (!word && !select) return null;
+  const code = 1 + (select ? 1 : 0) + (word ? 4 : 0);
+  if (direction === "home") return `\x1b[1;${code}H`;
+  if (direction === "end") return `\x1b[1;${code}F`;
+  if (direction === "pageUp") return `\x1b[5;${code}~`;
+  if (direction === "pageDown") return `\x1b[6;${code}~`;
+  return `\x1b[1;${code}${ARROW[direction]}`;
 };
 
 const FUNCTION_KEYS: Record<number, string> = {
@@ -82,13 +92,11 @@ export const terminalAdapter = (
         case "deleteForward":
           send(deleteSeq);
           return;
-        case "moveCursor":
-          if (action.word && WORD_CURSOR[action.direction]) {
-            send(WORD_CURSOR[action.direction]!);
-          } else {
-            send(cursor[action.direction]);
-          }
+        case "moveCursor": {
+          const seq = modifiedCursor(action.direction, !!action.word, !!action.select);
+          send(seq ?? cursor[action.direction]);
           return;
+        }
         case "escape":
           send("\x1b");
           return;

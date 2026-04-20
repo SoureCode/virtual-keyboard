@@ -275,7 +275,7 @@ export class VirtualKeyboard extends HTMLElement {
       }
       case "function":
         this.#adapter.execute({ kind: "function", n: a.n });
-        this.#clearStickyModifiers();
+        this.#clearArmedModifiers();
         return true;
       case "cursor": {
         const mods = this.#state.modifiers;
@@ -288,7 +288,7 @@ export class VirtualKeyboard extends HTMLElement {
           word: withCtrl || withAlt,
           select: withShift,
         });
-        if (!withShift) this.#clearStickyModifiers();
+        if (!withShift) this.#clearArmedModifiers();
         return !(withCtrl || withAlt);
       }
       case "insert":
@@ -326,10 +326,10 @@ export class VirtualKeyboard extends HTMLElement {
     } else {
       this.#adapter.execute({ kind: "tab" });
     }
-    this.#clearStickyModifiers();
+    this.#clearArmedModifiers();
   }
 
-  #clearStickyModifiers(): void {
+  #clearArmedModifiers(): void {
     let changed = false;
     for (const [mod, state] of this.#state.modifiers) {
       if (state === "armed") {
@@ -634,7 +634,7 @@ export class VirtualKeyboard extends HTMLElement {
       this.dispatchEvent(
         new CustomEvent("vk-input", { detail: { text: char }, bubbles: true, composed: true }),
       );
-      this.#clearStickyModifiers();
+      this.#clearArmedModifiers();
     } else {
       this.#emit(char);
     }
@@ -659,7 +659,7 @@ export class VirtualKeyboard extends HTMLElement {
       case "backspace":
         this.#adapter.execute({ kind: "backspace" });
         this.dispatchEvent(new CustomEvent("vk-backspace", { bubbles: true, composed: true }));
-        this.#clearStickyModifiers();
+        this.#clearArmedModifiers();
         break;
       case "shift":
         this.#toggleShift();
@@ -716,7 +716,7 @@ export class VirtualKeyboard extends HTMLElement {
       this.dispatchEvent(
         new CustomEvent("vk-input", { detail: { text }, bubbles: true, composed: true }),
       );
-      this.#clearStickyModifiers();
+      this.#clearArmedModifiers();
     } else {
       this.#emit(text);
     }

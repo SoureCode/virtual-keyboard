@@ -194,9 +194,11 @@ export class VirtualKeyboard extends HTMLElement {
       case "escape":
         this.#adapter.execute({ kind: "escape" });
         return true;
-      case "tab":
+      case "tab": {
+        const hadMods = this.#state.modifiers.size > 0;
         this.#emitWithModifiers("tab", null);
-        return true;
+        return !hadMods;
+      }
       case "function":
         this.#adapter.execute({ kind: "function", n: a.n });
         this.#clearStickyModifiers();
@@ -566,14 +568,15 @@ export class VirtualKeyboard extends HTMLElement {
         this.#emitChar(a.value);
         break;
       case "space":
-        this.#emit(" ");
+        this.#emitKey(" ", " ");
         break;
       case "return":
-        this.#emit("\n");
+        this.#emitKey("\n", "Enter");
         break;
       case "backspace":
         this.#adapter.execute({ kind: "backspace" });
         this.dispatchEvent(new CustomEvent("vk-backspace", { bubbles: true, composed: true }));
+        this.#clearStickyModifiers();
         break;
       case "shift":
         this.#toggleShift();
@@ -618,6 +621,22 @@ export class VirtualKeyboard extends HTMLElement {
     this.dispatchEvent(
       new CustomEvent("vk-input", { detail: { text }, bubbles: true, composed: true }),
     );
+  }
+
+  #emitKey(text: string, comboKey: string): void {
+    if (this.#state.modifiers.size > 0) {
+      this.#adapter.execute({
+        kind: "combo",
+        modifiers: [...this.#state.modifiers.keys()],
+        key: comboKey,
+      });
+      this.dispatchEvent(
+        new CustomEvent("vk-input", { detail: { text }, bubbles: true, composed: true }),
+      );
+      this.#clearStickyModifiers();
+    } else {
+      this.#emit(text);
+    }
   }
 }
 

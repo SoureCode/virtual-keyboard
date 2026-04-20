@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-lib:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run typecheck
+
+      - run: npm run build:lib
+
+      - name: Verify dist artifacts
+        run: |
+          test -f dist/virtual-keyboard.js
+          test -f dist/virtual-keyboard.d.ts
+
+      - name: Smoke test ESM entry
+        run: |
+          node -e '
+          globalThis.HTMLElement = class {};
+          globalThis.customElements = { define() {} };
+          import("./dist/virtual-keyboard.js").then(m => {
+            const keys = Object.keys(m);
+            console.log("exports:", keys);
+            const missing = ["VirtualKeyboard","terminalAdapter","nativeAdapter"].filter(k => !keys.includes(k));
+            if (missing.length) { console.error("missing:", missing); process.exit(1); }
+          })'
+
+      - name: Smoke test npm pack
+        run: npm pack --dry-run
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist
+          retention-days: 7

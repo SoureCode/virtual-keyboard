@@ -1,11 +1,36 @@
 {
-  "name": "virtual-keyboard",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@sourecode/virtual-keyboard",
+  "version": "0.1.0",
   "type": "module",
+  "license": "MIT",
+  "homepage": "https://github.com/SoureCode/virtual-keyboard#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SoureCode/virtual-keyboard.git"
+  },
+  "bugs": {
+    "url": "https://github.com/SoureCode/virtual-keyboard/issues"
+  },
+  "main": "./dist/virtual-keyboard.js",
+  "module": "./dist/virtual-keyboard.js",
+  "types": "./dist/virtual-keyboard.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/virtual-keyboard.d.ts",
+      "import": "./dist/virtual-keyboard.js"
+    },
+    "./style.css": "./dist/virtual-keyboard.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "dev": "npm run fetch-v86 && vite",
     "build": "npm run fetch-v86 && tsc && vite build",
+    "build:lib": "vite build --config vite.lib.config.ts",
+    "prepare": "npm run build:lib",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "fetch-v86": "node scripts/fetch-v86-assets.mjs"
@@ -19,6 +44,7 @@
     "sass": "^1.99.0",
     "typescript": "^6.0.3",
     "v86": "^0.5.330",
-    "vite": "^8.0.8"
+    "vite": "^8.0.8",
+    "vite-plugin-dts": "^4.5.4"
   }
 }

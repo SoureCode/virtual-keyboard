@@ -1,0 +1,44 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref (tag or commit SHA) to build from"
+        required: true
+        default: "master"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref || github.ref }}
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm run build:lib
+
+      - name: Pack npm tarball
+        id: pack
+        run: |
+          file=$(npm pack --ignore-scripts --silent)
+          echo "file=$file" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release with tarball
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release create "$GITHUB_REF_NAME" "${{ steps.pack.outputs.file }}" --notes ""

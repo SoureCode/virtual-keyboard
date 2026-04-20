@@ -38,7 +38,11 @@ const LONG_PRESS_MS = 350;
 const REPEAT_INITIAL_MS = 450;
 const REPEAT_INTERVAL_MS = 35;
 
-const attachRepeat = (btn: HTMLElement, fire: () => boolean | void): void => {
+const attachRepeat = (
+  btn: HTMLElement,
+  fire: () => boolean | void,
+  signal: AbortSignal,
+): void => {
   let initial: number | null = null;
   let interval: number | null = null;
   const stop = (): void => {
@@ -48,7 +52,7 @@ const attachRepeat = (btn: HTMLElement, fire: () => boolean | void): void => {
     interval = null;
   };
   const run = (): void => {
-    if (fire() === false) stop();
+    if (signal.aborted || fire() === false) stop();
   };
   btn.addEventListener("pointerdown", () => {
     stop();
@@ -57,10 +61,11 @@ const attachRepeat = (btn: HTMLElement, fire: () => boolean | void): void => {
       initial = null;
       interval = window.setInterval(run, REPEAT_INTERVAL_MS);
     }, REPEAT_INITIAL_MS);
-  });
-  btn.addEventListener("pointerup", stop);
-  btn.addEventListener("pointercancel", stop);
-  btn.addEventListener("pointerleave", stop);
+  }, { signal });
+  btn.addEventListener("pointerup", stop, { signal });
+  btn.addEventListener("pointercancel", stop, { signal });
+  btn.addEventListener("pointerleave", stop, { signal });
+  signal.addEventListener("abort", stop, { once: true });
 };
 
 const isRepeatableKey = (key: Key): boolean => {
@@ -182,7 +187,7 @@ export class VirtualKeyboard extends HTMLElement {
       if (s === "locked") btn.classList.add("locked");
     }
     if (isRepeatableTopbar(key.action)) {
-      attachRepeat(btn, (): boolean | void => this.#handleTopbar(key));
+      attachRepeat(btn, (): boolean | void => this.#handleTopbar(key), this.#controller!.signal);
     } else {
       let startX = 0;
       let startY = 0;
@@ -412,7 +417,7 @@ export class VirtualKeyboard extends HTMLElement {
       btn.addEventListener("pointerup", (e) => this.#onPointerUp(e));
       btn.addEventListener("pointercancel", () => this.#cancelPress());
     } else if (isRepeatableKey(key)) {
-      attachRepeat(btn, () => this.#handle(key));
+      attachRepeat(btn, () => this.#handle(key), this.#controller!.signal);
     } else {
       btn.addEventListener("pointerdown", () => this.#handle(key));
     }

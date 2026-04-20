@@ -1,0 +1,66 @@
+:root {
+  --nav-bg: #f3f4f6;
+  --nav-border: #e5e7eb;
+  --nav-link: #2563eb;
+  --body-bg: transparent;
+  --body-fg: inherit;
+}
+
+body.theme-dark {
+  --nav-bg: #111827;
+  --nav-border: #1f2937;
+  --nav-link: #93c5fd;
+  --body-bg: #0b1220;
+  --body-fg: #cbd5e1;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  background: var(--body-bg);
+  color: var(--body-fg);
+}
+
+.nav {
+  padding: 10px 16px;
+  font-size: 14px;
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--nav-border);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.nav a {
+  color: var(--nav-link);
+  text-decoration: none;
+}
+
+.nav a:hover {
+  text-decoration: underline;
+}
+
+.nav .status {
+  margin-left: auto;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.demo {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+}
+
+virtual-keyboard {
+  flex: none;
+}

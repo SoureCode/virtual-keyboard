@@ -5,19 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="mobile-web-app-capable" content="yes" />
     <title>Virtual Keyboard — Linux (v86)</title>
+    <link rel="stylesheet" href="./demo.css" />
     <style>
-      html, body { height: 100%; margin: 0; background: #0b1220; color: #cbd5e1; font-family: system-ui, sans-serif; }
-      body { display: flex; flex-direction: column; }
-      .nav { padding: 10px 16px; font-size: 14px; background: #111827; border-bottom: 1px solid #1f2937; display: flex; gap: 12px; align-items: center; }
-      .nav a { color: #93c5fd; text-decoration: none; }
-      .nav a:hover { text-decoration: underline; }
-      .nav .status { margin-left: auto; color: #94a3b8; font-size: 12px; }
-      .demo { flex: 1; padding: 12px; display: flex; flex-direction: column; min-height: 0; }
       #term { flex: 1; min-height: 0; }
-      virtual-keyboard { flex: none; }
     </style>
   </head>
-  <body>
+  <body class="theme-dark">
     <div class="nav">
       <a href="./index.html">← Native</a>
       <span>Linux (busybox on v86 · x86 WASM)</span>

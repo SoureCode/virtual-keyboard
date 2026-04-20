@@ -1,4 +1,12 @@
-import { copyFileSync, createWriteStream, existsSync, mkdirSync, statSync } from "node:fs";
+import {
+  copyFileSync,
+  createWriteStream,
+  existsSync,
+  mkdirSync,
+  renameSync,
+  statSync,
+  unlinkSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -23,7 +31,16 @@ const download = async (url, outRel) => {
   console.log(`↓ ${url}`);
   const res = await fetch(url);
   if (!res.ok || !res.body) throw new Error(`${url} → ${res.status}`);
-  await pipeline(res.body, createWriteStream(out));
+  const tmp = out + ".part";
+  try {
+    await pipeline(res.body, createWriteStream(tmp));
+    renameSync(tmp, out);
+  } catch (e) {
+    try {
+      unlinkSync(tmp);
+    } catch {}
+    throw e;
+  }
   console.log(`  saved ${outRel} (${statSync(out).size} bytes)`);
 };
 

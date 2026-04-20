@@ -228,7 +228,7 @@ export class VirtualKeyboard extends HTMLElement {
         return true;
       case "tab": {
         const hadMods = this.#state.modifiers.size > 0;
-        this.#emitWithModifiers("tab", null);
+        this.#emitTab();
         return !hadMods;
       }
       case "function":
@@ -277,17 +277,12 @@ export class VirtualKeyboard extends HTMLElement {
     this.#renderTopbar();
   }
 
-  #emitWithModifiers(kind: "tab", _keyChar: string | null): void;
-  #emitWithModifiers(kind: "char", keyChar: string): void;
-  #emitWithModifiers(kind: "tab" | "char", keyChar: string | null): void {
+  #emitTab(): void {
     const mods = [...this.#state.modifiers.keys()];
-    if (mods.length > 0 && kind === "char" && keyChar !== null) {
-      this.#adapter.execute({ kind: "combo", modifiers: mods, key: keyChar });
-    } else if (kind === "tab") {
-      if (mods.length > 0) this.#adapter.execute({ kind: "combo", modifiers: mods, key: "Tab" });
-      else this.#adapter.execute({ kind: "tab" });
-    } else if (keyChar !== null) {
-      this.#adapter.execute({ kind: "insertText", text: keyChar });
+    if (mods.length > 0) {
+      this.#adapter.execute({ kind: "combo", modifiers: mods, key: "Tab" });
+    } else {
+      this.#adapter.execute({ kind: "tab" });
     }
     this.#clearStickyModifiers();
   }

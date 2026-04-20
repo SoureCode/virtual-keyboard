@@ -1,5 +1,6 @@
 import {
   copyFileSync,
+  createReadStream,
   createWriteStream,
   existsSync,
   mkdirSync,
@@ -7,6 +8,7 @@ import {
   statSync,
   unlinkSync,
 } from "node:fs";
+import { createHash } from "node:crypto";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -14,18 +16,41 @@ import { fileURLToPath } from "node:url";
 const HOST = "https://copy.sh/v86/";
 
 const files = [
-  { url: HOST + "bios/seabios.bin", out: "public/v86/bios/seabios.bin" },
-  { url: HOST + "bios/vgabios.bin", out: "public/v86/bios/vgabios.bin" },
-  { url: HOST + "images/linux4.iso", out: "public/v86/images/linux.iso" },
+  {
+    url: HOST + "bios/seabios.bin",
+    out: "public/v86/bios/seabios.bin",
+    sha256: "73e3f359102e3a9982c35fce98eb7cd08f18303ac7f1ba6ebfbe6cdc1c244d98",
+  },
+  {
+    url: HOST + "bios/vgabios.bin",
+    out: "public/v86/bios/vgabios.bin",
+    sha256: "a4bc0d80cc3ca028c73dafa8fee396b8d054ce87ebd8abfbd31b06b437607880",
+  },
+  {
+    url: HOST + "images/linux4.iso",
+    out: "public/v86/images/linux.iso",
+    sha256: "cb403835be0d857191cdeb86efc8d559b94a787d6fcb57e0a04667296405c223",
+  },
 ];
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 
-const download = async (url, outRel) => {
+const sha256 = async (path) => {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(path), hash);
+  return hash.digest("hex");
+};
+
+const download = async (url, outRel, expectedHash) => {
   const out = join(root, outRel);
   if (existsSync(out) && statSync(out).size > 0) {
-    console.log(`✓ cached ${outRel}`);
-    return;
+    const actual = await sha256(out);
+    if (actual === expectedHash) {
+      console.log(`✓ cached ${outRel}`);
+      return;
+    }
+    console.warn(`! hash mismatch for cached ${outRel}; re-downloading`);
+    unlinkSync(out);
   }
   mkdirSync(dirname(out), { recursive: true });
   console.log(`↓ ${url}`);
@@ -34,6 +59,10 @@ const download = async (url, outRel) => {
   const tmp = out + ".part";
   try {
     await pipeline(res.body, createWriteStream(tmp));
+    const actual = await sha256(tmp);
+    if (actual !== expectedHash) {
+      throw new Error(`sha256 mismatch for ${outRel}: got ${actual}, expected ${expectedHash}`);
+    }
     renameSync(tmp, out);
   } catch (e) {
     try {
@@ -46,7 +75,7 @@ const download = async (url, outRel) => {
 
 for (const f of files) {
   try {
-    await download(f.url, f.out);
+    await download(f.url, f.out, f.sha256);
   } catch (e) {
     console.error(`failed ${f.url}:`, e.message);
     process.exitCode = 1;

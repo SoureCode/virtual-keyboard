@@ -1,4 +1,9 @@
 import { Terminal } from "@xterm/xterm";
+import { FitAddon } from "@xterm/addon-fit";
+import { ClipboardAddon } from "@xterm/addon-clipboard";
+import { LigaturesAddon } from "@xterm/addon-ligatures";
+import { ProgressAddon } from "@xterm/addon-progress";
+import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 // @ts-expect-error — v86 ships no types
 import V86 from "v86";
@@ -21,6 +26,7 @@ const HOST = import.meta.env.BASE_URL + "v86/";
 
 const term = new Terminal({
   cursorBlink: true,
+  allowProposedApi: true,
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   fontSize: 14,
   theme: {
@@ -30,8 +36,23 @@ const term = new Terminal({
   },
 });
 
+const fit = new FitAddon();
+term.loadAddon(fit);
+term.loadAddon(new ClipboardAddon());
+term.loadAddon(new ProgressAddon());
+term.loadAddon(new WebLinksAddon());
+
 const host = document.getElementById("term")!;
 term.open(host);
+fit.fit();
+term.loadAddon(new LigaturesAddon());
+
+const ro = new ResizeObserver(() => {
+  try {
+    fit.fit();
+  } catch {}
+});
+ro.observe(host);
 
 const status = document.getElementById("status")!;
 const setStatus = (text: string): void => {

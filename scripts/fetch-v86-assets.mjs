@@ -55,7 +55,12 @@ const download = async (url, outRel, expectedHash) => {
   mkdirSync(dirname(out), { recursive: true });
   console.log(`↓ ${url}`);
   const res = await fetch(url);
-  if (!res.ok || !res.body) throw new Error(`${url} → ${res.status}`);
+  if (!res.ok || !res.body) {
+    const snippet = await res.text().catch(() => "");
+    throw new Error(
+      `${url} → ${res.status} ${res.statusText} ${snippet.slice(0, 120).replace(/\s+/g, " ")}`.trim(),
+    );
+  }
   const tmp = out + ".part";
   try {
     await pipeline(res.body, createWriteStream(tmp));

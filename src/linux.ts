@@ -5,7 +5,7 @@ import { ProgressAddon } from "@xterm/addon-progress";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 import V86, { type V86Listener } from "v86";
-import "./keyboard/virtual-keyboard";
+import "./keyboard/element";
 import { terminalAdapter } from "./keyboard/output";
 
 const HOST = import.meta.env.BASE_URL + "v86/";

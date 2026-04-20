@@ -1,4 +1,4 @@
-export { VirtualKeyboard } from "./virtual-keyboard.js";
+export { VirtualKeyboard } from "./element.js";
 export { nativeAdapter } from "./output/native.js";
 export {
   terminalAdapter,

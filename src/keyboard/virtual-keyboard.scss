@@ -202,6 +202,10 @@
     letter-spacing: 0.03em;
   }
 
+  &.mod:active {
+    background: color-mix(in srgb, var(--vk-key-mod-bg) 60%, var(--vk-accent));
+  }
+
   &.mod.active {
     background: var(--vk-accent);
     color: #ffffff;

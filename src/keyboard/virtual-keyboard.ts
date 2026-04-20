@@ -129,14 +129,20 @@ export class VirtualKeyboard extends HTMLElement {
     const root = document.createElement("div");
     root.className = "vk";
     root.setAttribute("part", "root");
+    root.setAttribute("role", "group");
+    root.setAttribute("aria-label", "On-screen keyboard");
 
     const topbar = document.createElement("div");
     topbar.className = "topbar";
     topbar.setAttribute("part", "topbar");
+    topbar.setAttribute("role", "group");
+    topbar.setAttribute("aria-label", "Modifiers and special keys");
 
     const keyboard = document.createElement("div");
     keyboard.className = "keyboard";
     keyboard.setAttribute("part", "keyboard");
+    keyboard.setAttribute("role", "group");
+    keyboard.setAttribute("aria-label", "Main keyboard");
 
     root.append(topbar, keyboard);
     this.#root.replaceChildren(link, root);

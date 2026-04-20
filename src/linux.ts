@@ -115,8 +115,17 @@ const send = (data: string): void => {
   emulator.serial0_send(data);
 };
 
+let pending: number[] = [];
+let rafId = 0;
+const flushSerial = (): void => {
+  rafId = 0;
+  if (pending.length === 0) return;
+  term.write(new Uint8Array(pending));
+  pending = [];
+};
 listen("serial0-output-byte", (byte) => {
-  term.write(Uint8Array.from([byte as number]));
+  pending.push(byte as number);
+  if (rafId === 0) rafId = requestAnimationFrame(flushSerial);
 });
 
 term.onData(send);
@@ -130,6 +139,8 @@ window.addEventListener(
   "beforeunload",
   () => {
     clearWatchdogs();
+    if (rafId !== 0) cancelAnimationFrame(rafId);
+    flushSerial();
     window.removeEventListener("error", onError);
     window.removeEventListener("unhandledrejection", onRejection);
     ro.disconnect();

@@ -10,6 +10,7 @@
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true,
+    "noUncheckedIndexedAccess": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,

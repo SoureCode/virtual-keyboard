@@ -129,6 +129,47 @@ const horizontalTarget = (value: string, from: number, step: 1 | -1, word: boole
   return i;
 };
 
+const jumpCursor = (
+  el: HTMLElement,
+  direction: "home" | "end" | "pageUp" | "pageDown",
+  select: boolean,
+): void => {
+  if (isTextField(el)) {
+    const value = el.value;
+    const start = el.selectionStart ?? 0;
+    const end = el.selectionEnd ?? 0;
+    const anchor = el.selectionDirection === "backward" ? end : start;
+    const focus = el.selectionDirection === "backward" ? start : end;
+    let next: number;
+    if (direction === "home") {
+      next = value.lastIndexOf("\n", focus - 1) + 1;
+    } else if (direction === "end") {
+      const nl = value.indexOf("\n", focus);
+      next = nl === -1 ? value.length : nl;
+    } else if (direction === "pageUp") {
+      next = 0;
+    } else {
+      next = value.length;
+    }
+    if (select) {
+      const [s, e, dir] =
+        next < anchor
+          ? [next, anchor, "backward" as const]
+          : [anchor, next, "forward" as const];
+      el.setSelectionRange(s, e, dir);
+    } else {
+      el.setSelectionRange(next, next);
+    }
+  } else if (isEditable(el)) {
+    const sel = el.ownerDocument.getSelection();
+    if (!sel) return;
+    const alter = select ? "extend" : "move";
+    const dir = direction === "home" || direction === "pageUp" ? "backward" : "forward";
+    const unit = direction === "home" || direction === "end" ? "lineboundary" : "documentboundary";
+    sel.modify(alter, dir, unit);
+  }
+};
+
 const moveCursor = (
   el: HTMLElement,
   direction: "left" | "right" | "up" | "down",
@@ -189,14 +230,14 @@ export const nativeAdapter = (): OutputAdapter => ({
         deleteRange(el, true);
         return;
       case "moveCursor":
-        if (action.direction === "home" || action.direction === "end") {
+        if (
+          action.direction === "home" ||
+          action.direction === "end" ||
+          action.direction === "pageUp" ||
+          action.direction === "pageDown"
+        ) {
           desiredColumn.delete(el);
-          dispatchKey(el, { key: action.direction === "home" ? "Home" : "End" });
-          return;
-        }
-        if (action.direction === "pageUp" || action.direction === "pageDown") {
-          desiredColumn.delete(el);
-          dispatchKey(el, { key: action.direction === "pageUp" ? "PageUp" : "PageDown" });
+          jumpCursor(el, action.direction, action.select ?? false);
           return;
         }
         moveCursor(el, action.direction, action.select ?? false, action.word ?? false);

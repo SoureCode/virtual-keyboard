@@ -124,10 +124,15 @@ export class VirtualKeyboard extends HTMLElement {
       </div>
     `;
     const swallowFocus = (e: Event): void => e.preventDefault();
+    const swallowFocusUnlessTopbar = (e: Event): void => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".topbar")) return;
+      e.preventDefault();
+    };
     const host = this.#root.querySelector(".vk");
     host?.addEventListener("pointerdown", swallowFocus);
     host?.addEventListener("mousedown", swallowFocus);
-    host?.addEventListener("touchstart", swallowFocus, { passive: false });
+    host?.addEventListener("touchstart", swallowFocusUnlessTopbar, { passive: false });
     this.#renderTopbar();
     this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
     this.#render();

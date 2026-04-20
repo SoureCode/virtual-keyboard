@@ -30,6 +30,9 @@ type Press = {
   alts: HTMLButtonElement[];
   selectedIndex: number;
   committed: boolean;
+  committedChar: string | null;
+  upperAtDown: boolean;
+  controller: AbortController;
 };
 
 const DEFAULT_LOCALE: Locale = "en";
@@ -182,16 +185,14 @@ export class VirtualKeyboard extends HTMLElement {
 
     this.#controller = new AbortController();
     const { signal } = this.#controller;
-    const swallowFocus = (e: Event): void => e.preventDefault();
     const swallowFocusUnlessTopbar = (e: Event): void => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".topbar")) return;
       e.preventDefault();
     };
     const host = this.#root.querySelector(".vk");
-    host?.addEventListener("pointerdown", swallowFocus, { signal });
-    host?.addEventListener("mousedown", swallowFocus, { signal });
-    host?.addEventListener("touchstart", swallowFocusUnlessTopbar, { passive: false, signal });
+    host?.addEventListener("pointerdown", swallowFocusUnlessTopbar, { signal });
+    host?.addEventListener("mousedown", swallowFocusUnlessTopbar, { signal });
     this.#renderTopbar();
     this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
     this.#render();
@@ -466,7 +467,6 @@ export class VirtualKeyboard extends HTMLElement {
     const signal = this.#controller!.signal;
     if (hasAlts) {
       btn.addEventListener("pointerdown", (e) => this.#onPointerDown(e, key, btn), { signal });
-      btn.addEventListener("pointermove", (e) => this.#onPointerMove(e), { signal });
       btn.addEventListener("pointerup", (e) => this.#onPointerUp(e), { signal });
       btn.addEventListener("pointercancel", () => this.#cancelPress(), { signal });
     } else if (isRepeatableKey(key)) {
@@ -505,6 +505,22 @@ export class VirtualKeyboard extends HTMLElement {
       return;
     }
     btn.setPointerCapture(e.pointerId);
+
+    const upperAtDown = this.#state.shift !== "off" && this.#state.layer === "letters";
+    let committedChar: string | null = null;
+    if (key.action.kind === "char" && this.#state.modifiers.size === 0) {
+      committedChar = upperAtDown ? key.action.value.toUpperCase() : key.action.value;
+      this.#emit(committedChar);
+      if (this.#state.shift === "on") {
+        this.#state.shift = "off";
+        this.#applyShiftState();
+      }
+    }
+
+    const controller = new AbortController();
+    btn.addEventListener("pointermove", (ev) => this.#onPointerMove(ev), {
+      signal: controller.signal,
+    });
     const press: Press = {
       key,
       button: btn,
@@ -513,7 +529,10 @@ export class VirtualKeyboard extends HTMLElement {
       popover: null,
       alts: [],
       selectedIndex: 0,
-      committed: false,
+      committed: committedChar !== null,
+      committedChar,
+      upperAtDown,
+      controller,
     };
     press.timer = window.setTimeout(() => this.#openPopover(), this.#longPressMs);
     this.#press = press;
@@ -539,13 +558,23 @@ export class VirtualKeyboard extends HTMLElement {
       p.timer = null;
     }
     if (p.popover) {
-      const alts = p.key.alternates ?? [];
-      const choice = alts[p.selectedIndex] ?? p.key.label;
-      this.#emitChar(choice);
+      const chosen = p.key.alternates?.[p.selectedIndex];
+      if (chosen !== undefined) {
+        const alternative = p.upperAtDown ? chosen.toUpperCase() : chosen;
+        if (p.committed) {
+          if (alternative !== p.committedChar) {
+            this.#adapter.execute({ kind: "backspace" });
+            this.#emit(alternative);
+          }
+        } else {
+          this.#emitChar(chosen);
+        }
+      }
       this.#closePopover();
     } else if (!p.committed) {
       this.#handle(p.key);
     }
+    p.controller.abort();
     this.#press = null;
   }
 
@@ -554,6 +583,7 @@ export class VirtualKeyboard extends HTMLElement {
     if (!p) return;
     if (p.timer !== null) clearTimeout(p.timer);
     if (p.popover) this.#closePopover();
+    p.controller.abort();
     this.#press = null;
   }
 
@@ -561,7 +591,7 @@ export class VirtualKeyboard extends HTMLElement {
     const p = this.#press;
     if (!p || !p.key.alternates) return;
     const alts = p.key.alternates;
-    const upper = this.#state.shift !== "off" && this.#state.layer === "letters";
+    const upper = p.upperAtDown;
 
     const popover = document.createElement("div");
     popover.className = "popover";

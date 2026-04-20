@@ -6,21 +6,21 @@ A framework-agnostic on-screen keyboard as a web component. Drops into any page 
 
 ## Install (without npmjs)
 
-This package is not published to the npm registry. Each tagged release publishes an `npm pack` tarball as a GitHub Release asset. Install it directly:
-
-```sh
-npm install https://github.com/SoureCode/virtual-keyboard/releases/download/v0.1.0/sourecode-virtual-keyboard-0.1.0.tgz
-```
-
-Or install from the git tag — the `prepare` script will build on install:
+This package is not published to the npm registry. Install it from GitHub:
 
 ```sh
 npm install github:SoureCode/virtual-keyboard#v0.1.0
 ```
 
-Consumers of the git-install path need `git` plus either public-repo access or a PAT/SSH key with read access to the repo.
+The `prepare` script builds the library on install. Consumers need `git` plus either public-repo access or a PAT/SSH key with read access.
 
-Then:
+Prefer a prebuilt tarball (no build toolchain on the consumer side)? Each tagged release attaches one as a GitHub Release asset:
+
+```sh
+npm install https://github.com/SoureCode/virtual-keyboard/releases/download/v0.1.0/sourecode-virtual-keyboard-0.1.0.tgz
+```
+
+Then import:
 
 ```ts
 import { VirtualKeyboard, terminalAdapter, nativeAdapter } from "@sourecode/virtual-keyboard";

@@ -409,6 +409,8 @@ export class VirtualKeyboard extends HTMLElement {
     btn.type = "button";
     btn.tabIndex = -1;
     btn.className = "key";
+    btn.dataset.action = key.action.kind;
+    if (key.action.kind === "char") btn.classList.add("char");
     if (key.action.kind !== "char") btn.classList.add("mod");
     if (key.action.kind === "space") btn.classList.add("space");
     if (key.action.kind === "shift" && this.#state.shift !== "off") {
@@ -437,10 +439,20 @@ export class VirtualKeyboard extends HTMLElement {
     if (key.action.kind === "shift") {
       return this.#state.shift === "locked" ? "⇪" : "⇧";
     }
-    if (key.action.kind === "char" && this.#state.layer === "letters") {
-      return this.#state.shift !== "off" ? key.label.toUpperCase() : key.label;
-    }
     return key.label;
+  }
+
+  #applyShiftState(): void {
+    const root = this.#root.querySelector(".vk");
+    if (!root) return;
+    root.classList.toggle("shift", this.#state.shift !== "off");
+    root.classList.toggle("shift-locked", this.#state.shift === "locked");
+    const shiftBtn = this.#root.querySelector<HTMLButtonElement>('.key[data-action="shift"]');
+    if (shiftBtn) {
+      shiftBtn.textContent = this.#state.shift === "locked" ? "⇪" : "⇧";
+      shiftBtn.classList.toggle("active", this.#state.shift !== "off");
+      shiftBtn.classList.toggle("locked", this.#state.shift === "locked");
+    }
   }
 
   #onPointerDown(e: PointerEvent, key: Key, btn: HTMLButtonElement): void {
@@ -586,7 +598,7 @@ export class VirtualKeyboard extends HTMLElement {
     }
     if (this.#state.shift === "on") {
       this.#state.shift = "off";
-      this.#render();
+      this.#applyShiftState();
     }
   }
 
@@ -633,7 +645,7 @@ export class VirtualKeyboard extends HTMLElement {
     } else {
       this.#state.shift = "off";
     }
-    this.#render();
+    this.#applyShiftState();
   }
 
   #cycleLocale(): void {

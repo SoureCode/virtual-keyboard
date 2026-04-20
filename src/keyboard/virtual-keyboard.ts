@@ -86,6 +86,7 @@ export class VirtualKeyboard extends HTMLElement {
   #lastShiftTap = 0;
   #adapter: OutputAdapter = nativeAdapter();
   #press: Press | null = null;
+  #controller: AbortController | null = null;
 
   constructor() {
     super();
@@ -123,6 +124,8 @@ export class VirtualKeyboard extends HTMLElement {
         <div class="keyboard" part="keyboard"></div>
       </div>
     `;
+    this.#controller = new AbortController();
+    const { signal } = this.#controller;
     const swallowFocus = (e: Event): void => e.preventDefault();
     const swallowFocusUnlessTopbar = (e: Event): void => {
       const target = e.target as HTMLElement | null;
@@ -130,12 +133,18 @@ export class VirtualKeyboard extends HTMLElement {
       e.preventDefault();
     };
     const host = this.#root.querySelector(".vk");
-    host?.addEventListener("pointerdown", swallowFocus);
-    host?.addEventListener("mousedown", swallowFocus);
-    host?.addEventListener("touchstart", swallowFocusUnlessTopbar, { passive: false });
+    host?.addEventListener("pointerdown", swallowFocus, { signal });
+    host?.addEventListener("mousedown", swallowFocus, { signal });
+    host?.addEventListener("touchstart", swallowFocusUnlessTopbar, { passive: false, signal });
     this.#renderTopbar();
     this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
     this.#render();
+  }
+
+  disconnectedCallback(): void {
+    this.#controller?.abort();
+    this.#controller = null;
+    this.#cancelPress();
   }
 
   #renderTopbar(): void {
@@ -277,6 +286,7 @@ export class VirtualKeyboard extends HTMLElement {
   }
 
   #attachDragScroll(el: HTMLElement): void {
+    const signal = this.#controller!.signal;
     let dragging = false;
     let startX = 0;
     let startScroll = 0;
@@ -291,24 +301,24 @@ export class VirtualKeyboard extends HTMLElement {
       pointerId = e.pointerId;
       el.setPointerCapture(e.pointerId);
       el.classList.add("dragging");
-    });
+    }, { signal });
     el.addEventListener("pointermove", (e) => {
       if (!dragging || e.pointerId !== pointerId) return;
       el.scrollLeft = startScroll - (e.clientX - startX);
-    });
+    }, { signal });
     const stop = (e: PointerEvent): void => {
       if (!dragging || e.pointerId !== pointerId) return;
       dragging = false;
       pointerId = -1;
       el.classList.remove("dragging");
     };
-    el.addEventListener("pointerup", stop);
-    el.addEventListener("pointercancel", stop);
+    el.addEventListener("pointerup", stop, { signal });
+    el.addEventListener("pointercancel", stop, { signal });
     el.addEventListener("wheel", (e) => {
       if (e.deltaY === 0) return;
       el.scrollLeft += e.deltaY;
       e.preventDefault();
-    }, { passive: false });
+    }, { passive: false, signal });
   }
 
   #render(): void {

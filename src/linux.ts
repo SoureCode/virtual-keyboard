@@ -10,8 +10,11 @@ import V86 from "v86";
 import "./keyboard/virtual-keyboard";
 import { terminalAdapter } from "./keyboard/output";
 
+type V86Listener = (...args: unknown[]) => void;
+
 type V86Instance = {
-  add_listener(event: string, cb: (...args: unknown[]) => void): void;
+  add_listener(event: string, cb: V86Listener): void;
+  remove_listener(event: string, cb: V86Listener): void;
   serial0_send(data: string): void;
   stop(): Promise<void>;
   restart(): void;
@@ -76,23 +79,29 @@ const emulator = new V86Constructor({
   disable_speaker: true,
 });
 
-emulator.add_listener("emulator-ready", () => setStatus("ready"));
-emulator.add_listener("emulator-started", () => setStatus("running"));
-emulator.add_listener("download-progress", ((e: unknown) => {
+const listeners: Array<[string, V86Listener]> = [];
+const listen = (event: string, cb: V86Listener): void => {
+  emulator.add_listener(event, cb);
+  listeners.push([event, cb]);
+};
+
+listen("emulator-ready", () => setStatus("ready"));
+listen("emulator-started", () => setStatus("running"));
+listen("download-progress", (e) => {
   const p = e as { loaded: number; total?: number; file_name?: string };
   if (p.total) {
     const pct = Math.round((p.loaded / p.total) * 100);
     setStatus(`downloading ${p.file_name ?? "image"} ${pct}%`);
   }
-}) as (...args: unknown[]) => void);
+});
 
 const send = (data: string): void => {
   emulator.serial0_send(data);
 };
 
-emulator.add_listener("serial0-output-byte", ((byte: unknown) => {
+listen("serial0-output-byte", (byte) => {
   term.write(Uint8Array.from([byte as number]));
-}) as (...args: unknown[]) => void);
+});
 
 term.onData(send);
 
@@ -100,3 +109,13 @@ const kb = document.querySelector("virtual-keyboard")!;
 kb.setAdapter(terminalAdapter(send));
 
 term.focus();
+
+window.addEventListener(
+  "beforeunload",
+  () => {
+    ro.disconnect();
+    for (const [event, cb] of listeners) emulator.remove_listener(event, cb);
+    term.dispose();
+  },
+  { once: true },
+);

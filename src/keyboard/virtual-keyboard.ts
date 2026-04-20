@@ -7,14 +7,18 @@ import {
   type LayerId,
   type Locale,
 } from "./layouts";
-import { nativeAdapter, type OutputAdapter } from "./output";
+import { nativeAdapter, type Modifier, type OutputAdapter } from "./output";
+import { topbarRows, type TopbarKey } from "./topbar";
 
 type ShiftState = "off" | "on" | "locked";
+
+type ModifierState = "armed" | "locked";
 
 type State = {
   locale: Locale;
   layer: LayerId;
   shift: ShiftState;
+  modifiers: Map<Modifier, ModifierState>;
 };
 
 type Press = {
@@ -35,7 +39,13 @@ const LONG_PRESS_MS = 350;
 export class VirtualKeyboard extends HTMLElement {
   static observedAttributes = ["locale"];
 
-  #state: State = { locale: DEFAULT_LOCALE, layer: "letters", shift: "off" };
+  #state: State = {
+    locale: DEFAULT_LOCALE,
+    layer: "letters",
+    shift: "off",
+    modifiers: new Map(),
+  };
+  #lastModifierTap = new Map<Modifier, number>();
   #root: ShadowRoot;
   #lastShiftTap = 0;
   #adapter: OutputAdapter = nativeAdapter();
@@ -72,14 +82,176 @@ export class VirtualKeyboard extends HTMLElement {
   connectedCallback(): void {
     this.#root.innerHTML = `
       <link rel="stylesheet" href="${stylesheetUrl}">
-      <div class="keyboard" part="keyboard"></div>
+      <div class="vk" part="root">
+        <div class="topbar" part="topbar"></div>
+        <div class="keyboard" part="keyboard"></div>
+      </div>
     `;
-    const container = this.#root.querySelector(".keyboard");
     const swallowFocus = (e: Event): void => e.preventDefault();
-    container?.addEventListener("pointerdown", swallowFocus);
-    container?.addEventListener("mousedown", swallowFocus);
-    container?.addEventListener("touchstart", swallowFocus, { passive: false });
+    const host = this.#root.querySelector(".vk");
+    host?.addEventListener("pointerdown", swallowFocus);
+    host?.addEventListener("mousedown", swallowFocus);
+    host?.addEventListener("touchstart", swallowFocus, { passive: false });
+    this.#renderTopbar();
+    this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
     this.#render();
+  }
+
+  #renderTopbar(): void {
+    const topbar = this.#root.querySelector(".topbar");
+    if (!topbar) return;
+    const track = document.createElement("div");
+    track.className = "topbar-track";
+    for (const row of topbarRows) {
+      const rowEl = document.createElement("div");
+      rowEl.className = "topbar-row";
+      for (let g = 0; g < row.length; g++) {
+        if (g > 0) {
+          const sep = document.createElement("span");
+          sep.className = "topbar-sep";
+          sep.setAttribute("aria-hidden", "true");
+          rowEl.append(sep);
+        }
+        for (const key of row[g]!) rowEl.append(this.#renderTopbarKey(key));
+      }
+      track.append(rowEl);
+    }
+    topbar.replaceChildren(track);
+  }
+
+  #renderTopbarKey(key: TopbarKey): HTMLButtonElement {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.tabIndex = -1;
+    btn.className = "tb-key";
+    if (key.wide) btn.classList.add("wide");
+    btn.textContent = key.label;
+    if (key.action.kind === "modifier") {
+      const s = this.#state.modifiers.get(key.action.modifier);
+      if (s === "armed") btn.classList.add("active");
+      if (s === "locked") btn.classList.add("locked");
+    }
+    let startX = 0;
+    let startY = 0;
+    let moved = false;
+    btn.addEventListener("pointerdown", (e) => {
+      startX = e.clientX;
+      startY = e.clientY;
+      moved = false;
+    });
+    btn.addEventListener("pointermove", (e) => {
+      if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) moved = true;
+    });
+    btn.addEventListener("pointerup", () => {
+      if (!moved) this.#handleTopbar(key);
+    });
+    return btn;
+  }
+
+  #handleTopbar(key: TopbarKey): void {
+    const a = key.action;
+    switch (a.kind) {
+      case "escape":
+        this.#adapter.execute({ kind: "escape" });
+        return;
+      case "tab":
+        this.#emitWithModifiers("tab", null);
+        return;
+      case "function":
+        this.#adapter.execute({ kind: "function", n: a.n });
+        this.#clearStickyModifiers();
+        return;
+      case "cursor":
+        this.#adapter.execute({ kind: "moveCursor", direction: a.direction });
+        this.#clearStickyModifiers();
+        return;
+      case "insert":
+        this.#adapter.execute({ kind: "raw", data: "\x1b[2~" });
+        return;
+      case "deleteForward":
+        this.#adapter.execute({ kind: "deleteForward" });
+        return;
+      case "modifier":
+        this.#toggleModifier(a.modifier);
+        return;
+    }
+  }
+
+  #toggleModifier(modifier: Modifier): void {
+    const now = performance.now();
+    const prev = this.#lastModifierTap.get(modifier) ?? 0;
+    const doubleTap = now - prev < DOUBLE_TAP_MS;
+    this.#lastModifierTap.set(modifier, now);
+    const current = this.#state.modifiers.get(modifier);
+    if (doubleTap && current === "armed") {
+      this.#state.modifiers.set(modifier, "locked");
+    } else if (current === undefined) {
+      this.#state.modifiers.set(modifier, "armed");
+    } else {
+      this.#state.modifiers.delete(modifier);
+    }
+    this.#renderTopbar();
+  }
+
+  #emitWithModifiers(kind: "tab", _keyChar: string | null): void;
+  #emitWithModifiers(kind: "char", keyChar: string): void;
+  #emitWithModifiers(kind: "tab" | "char", keyChar: string | null): void {
+    const mods = [...this.#state.modifiers.keys()];
+    if (mods.length > 0 && kind === "char" && keyChar !== null) {
+      this.#adapter.execute({ kind: "combo", modifiers: mods, key: keyChar });
+    } else if (kind === "tab") {
+      if (mods.length > 0) this.#adapter.execute({ kind: "combo", modifiers: mods, key: "Tab" });
+      else this.#adapter.execute({ kind: "tab" });
+    } else if (keyChar !== null) {
+      this.#adapter.execute({ kind: "insertText", text: keyChar });
+    }
+    this.#clearStickyModifiers();
+  }
+
+  #clearStickyModifiers(): void {
+    let changed = false;
+    for (const [mod, state] of this.#state.modifiers) {
+      if (state === "armed") {
+        this.#state.modifiers.delete(mod);
+        changed = true;
+      }
+    }
+    if (changed) this.#renderTopbar();
+  }
+
+  #attachDragScroll(el: HTMLElement): void {
+    let dragging = false;
+    let startX = 0;
+    let startScroll = 0;
+    let pointerId = -1;
+    el.addEventListener("pointerdown", (e) => {
+      if (e.pointerType !== "mouse") return;
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".tb-key")) return;
+      dragging = true;
+      startX = e.clientX;
+      startScroll = el.scrollLeft;
+      pointerId = e.pointerId;
+      el.setPointerCapture(e.pointerId);
+      el.classList.add("dragging");
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!dragging || e.pointerId !== pointerId) return;
+      el.scrollLeft = startScroll - (e.clientX - startX);
+    });
+    const stop = (e: PointerEvent): void => {
+      if (!dragging || e.pointerId !== pointerId) return;
+      dragging = false;
+      pointerId = -1;
+      el.classList.remove("dragging");
+    };
+    el.addEventListener("pointerup", stop);
+    el.addEventListener("pointercancel", stop);
+    el.addEventListener("wheel", (e) => {
+      if (e.deltaY === 0) return;
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    }, { passive: false });
   }
 
   #render(): void {
@@ -310,7 +482,20 @@ export class VirtualKeyboard extends HTMLElement {
 
   #emitChar(value: string): void {
     const upper = this.#state.shift !== "off" && this.#state.layer === "letters";
-    this.#emit(upper ? value.toUpperCase() : value);
+    const char = upper ? value.toUpperCase() : value;
+    if (this.#state.modifiers.size > 0) {
+      this.#adapter.execute({
+        kind: "combo",
+        modifiers: [...this.#state.modifiers.keys()],
+        key: char,
+      });
+      this.dispatchEvent(
+        new CustomEvent("vk-input", { detail: { text: char }, bubbles: true, composed: true }),
+      );
+      this.#clearStickyModifiers();
+    } else {
+      this.#emit(char);
+    }
     if (this.#state.shift === "on") {
       this.#state.shift = "off";
       this.#render();

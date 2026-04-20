@@ -1,4 +1,4 @@
-export type { OutputAdapter, KeyboardAction, CursorDirection } from "./types";
+export type { OutputAdapter, KeyboardAction, CursorDirection, Modifier } from "./types";
 export { nativeAdapter } from "./native";
 export {
   terminalAdapter,

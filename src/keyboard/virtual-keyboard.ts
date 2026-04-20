@@ -38,6 +38,10 @@ const LONG_PRESS_MS = 350;
 const REPEAT_INITIAL_MS = 450;
 const REPEAT_INTERVAL_MS = 35;
 
+/** Hold-to-repeat binder.
+ *  `fire` runs once on pointerdown, then every REPEAT_INTERVAL_MS after
+ *  REPEAT_INITIAL_MS until pointerup/cancel, the signal aborts, or `fire`
+ *  returns `false`. `true` or `void` means "keep repeating". */
 const attachRepeat = (
   btn: HTMLElement,
   fire: () => boolean | void,
@@ -226,6 +230,9 @@ export class VirtualKeyboard extends HTMLElement {
     return btn;
   }
 
+  /** Topbar press/repeat handler.
+   *  Returns `false` to stop auto-repeat after this tick (e.g. a word-jump
+   *  cursor move or a Tab with modifiers held); `true` keeps repeating. */
   #handleTopbar(key: TopbarKey): boolean {
     const a = key.action;
     switch (a.kind) {

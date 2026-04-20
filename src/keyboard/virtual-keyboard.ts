@@ -33,19 +33,21 @@ type Press = {
 };
 
 const DEFAULT_LOCALE: Locale = "en";
-const DOUBLE_TAP_MS = 300;
-const LONG_PRESS_MS = 350;
-const REPEAT_INITIAL_MS = 450;
-const REPEAT_INTERVAL_MS = 35;
+const DEFAULT_DOUBLE_TAP_MS = 300;
+const DEFAULT_LONG_PRESS_MS = 350;
+const DEFAULT_REPEAT_INITIAL_MS = 450;
+const DEFAULT_REPEAT_INTERVAL_MS = 35;
 
 /** Hold-to-repeat binder.
- *  `fire` runs once on pointerdown, then every REPEAT_INTERVAL_MS after
- *  REPEAT_INITIAL_MS until pointerup/cancel, the signal aborts, or `fire`
- *  returns `false`. `true` or `void` means "keep repeating". */
+ *  `fire` runs once on pointerdown, then every `intervalMs` after `initialMs`
+ *  until pointerup/cancel, the signal aborts, or `fire` returns `false`.
+ *  `true` or `void` means "keep repeating". */
 const attachRepeat = (
   btn: HTMLElement,
   fire: () => boolean | void,
   signal: AbortSignal,
+  initialMs: number,
+  intervalMs: number,
 ): void => {
   let initial: number | null = null;
   let interval: number | null = null;
@@ -63,8 +65,8 @@ const attachRepeat = (
     if (fire() === false) return;
     initial = window.setTimeout(() => {
       initial = null;
-      interval = window.setInterval(run, REPEAT_INTERVAL_MS);
-    }, REPEAT_INITIAL_MS);
+      interval = window.setInterval(run, intervalMs);
+    }, initialMs);
   }, { signal });
   btn.addEventListener("pointerup", stop, { signal });
   btn.addEventListener("pointercancel", stop, { signal });
@@ -82,7 +84,13 @@ const isRepeatableTopbar = (action: TopbarKey["action"]): boolean => {
 };
 
 export class VirtualKeyboard extends HTMLElement {
-  static observedAttributes = ["locale"];
+  static observedAttributes = [
+    "locale",
+    "double-tap-ms",
+    "long-press-ms",
+    "repeat-initial-ms",
+    "repeat-interval-ms",
+  ];
 
   #state: State = {
     locale: DEFAULT_LOCALE,
@@ -96,6 +104,10 @@ export class VirtualKeyboard extends HTMLElement {
   #adapter: OutputAdapter = nativeAdapter();
   #press: Press | null = null;
   #controller: AbortController | null = null;
+  #doubleTapMs = DEFAULT_DOUBLE_TAP_MS;
+  #longPressMs = DEFAULT_LONG_PRESS_MS;
+  #repeatInitialMs = DEFAULT_REPEAT_INITIAL_MS;
+  #repeatIntervalMs = DEFAULT_REPEAT_INTERVAL_MS;
 
   constructor() {
     super();
@@ -122,6 +134,23 @@ export class VirtualKeyboard extends HTMLElement {
       this.#state.layer = "letters";
       this.#state.shift = "off";
       if (this.isConnected) this.#render();
+      return;
+    }
+    const parsed = value === null ? NaN : Number(value);
+    const ms = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+    switch (name) {
+      case "double-tap-ms":
+        this.#doubleTapMs = ms ?? DEFAULT_DOUBLE_TAP_MS;
+        return;
+      case "long-press-ms":
+        this.#longPressMs = ms ?? DEFAULT_LONG_PRESS_MS;
+        return;
+      case "repeat-initial-ms":
+        this.#repeatInitialMs = ms ?? DEFAULT_REPEAT_INITIAL_MS;
+        return;
+      case "repeat-interval-ms":
+        this.#repeatIntervalMs = ms ?? DEFAULT_REPEAT_INTERVAL_MS;
+        return;
     }
   }
 
@@ -210,7 +239,7 @@ export class VirtualKeyboard extends HTMLElement {
     }
     const signal = this.#controller!.signal;
     if (isRepeatableTopbar(key.action)) {
-      attachRepeat(btn, (): boolean | void => this.#handleTopbar(key), signal);
+      attachRepeat(btn, (): boolean | void => this.#handleTopbar(key), signal, this.#repeatInitialMs, this.#repeatIntervalMs);
     } else {
       let startX = 0;
       let startY = 0;
@@ -277,7 +306,7 @@ export class VirtualKeyboard extends HTMLElement {
   #toggleModifier(modifier: Modifier): void {
     const now = performance.now();
     const prev = this.#lastModifierTap.get(modifier) ?? 0;
-    const doubleTap = now - prev < DOUBLE_TAP_MS;
+    const doubleTap = now - prev < this.#doubleTapMs;
     this.#lastModifierTap.set(modifier, now);
     const current = this.#state.modifiers.get(modifier);
     if (doubleTap && current === "armed") {
@@ -441,7 +470,7 @@ export class VirtualKeyboard extends HTMLElement {
       btn.addEventListener("pointerup", (e) => this.#onPointerUp(e), { signal });
       btn.addEventListener("pointercancel", () => this.#cancelPress(), { signal });
     } else if (isRepeatableKey(key)) {
-      attachRepeat(btn, () => this.#handle(key), signal);
+      attachRepeat(btn, () => this.#handle(key), signal, this.#repeatInitialMs, this.#repeatIntervalMs);
     } else {
       btn.addEventListener("pointerdown", () => this.#handle(key), { signal });
     }
@@ -486,7 +515,7 @@ export class VirtualKeyboard extends HTMLElement {
       selectedIndex: 0,
       committed: false,
     };
-    press.timer = window.setTimeout(() => this.#openPopover(), LONG_PRESS_MS);
+    press.timer = window.setTimeout(() => this.#openPopover(), this.#longPressMs);
     this.#press = press;
   }
 
@@ -648,7 +677,7 @@ export class VirtualKeyboard extends HTMLElement {
 
   #toggleShift(): void {
     const now = performance.now();
-    const isDoubleTap = now - this.#lastShiftTap < DOUBLE_TAP_MS;
+    const isDoubleTap = now - this.#lastShiftTap < this.#doubleTapMs;
     this.#lastShiftTap = now;
 
     if (isDoubleTap && this.#state.shift === "on") {

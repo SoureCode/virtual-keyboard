@@ -122,13 +122,25 @@ export class VirtualKeyboard extends HTMLElement {
   }
 
   connectedCallback(): void {
-    this.#root.innerHTML = `
-      <link rel="stylesheet" href="${stylesheetUrl}">
-      <div class="vk" part="root">
-        <div class="topbar" part="topbar"></div>
-        <div class="keyboard" part="keyboard"></div>
-      </div>
-    `;
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = stylesheetUrl;
+
+    const root = document.createElement("div");
+    root.className = "vk";
+    root.setAttribute("part", "root");
+
+    const topbar = document.createElement("div");
+    topbar.className = "topbar";
+    topbar.setAttribute("part", "topbar");
+
+    const keyboard = document.createElement("div");
+    keyboard.className = "keyboard";
+    keyboard.setAttribute("part", "keyboard");
+
+    root.append(topbar, keyboard);
+    this.#root.replaceChildren(link, root);
+
     this.#controller = new AbortController();
     const { signal } = this.#controller;
     const swallowFocus = (e: Event): void => e.preventDefault();

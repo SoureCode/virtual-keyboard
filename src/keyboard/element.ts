@@ -1,4 +1,4 @@
-import stylesheetUrl from "./virtual-keyboard.scss?url";
+import styleText from "./virtual-keyboard.scss?inline";
 import {
   isLocale,
   layouts,
@@ -86,6 +86,9 @@ const isRepeatableTopbar = (action: TopbarKey["action"]): boolean => {
   return action.kind === "cursor" || action.kind === "tab" || action.kind === "deleteForward";
 };
 
+const stylesheet = new CSSStyleSheet();
+stylesheet.replaceSync(styleText);
+
 export class VirtualKeyboard extends HTMLElement {
   static observedAttributes = [
     "locale",
@@ -158,9 +161,7 @@ export class VirtualKeyboard extends HTMLElement {
   }
 
   connectedCallback(): void {
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.href = stylesheetUrl;
+    this.#root.adoptedStyleSheets = [stylesheet];
 
     const root = document.createElement("div");
     root.className = "vk";
@@ -181,7 +182,7 @@ export class VirtualKeyboard extends HTMLElement {
     keyboard.setAttribute("aria-label", "Main keyboard");
 
     root.append(topbar, keyboard);
-    this.#root.replaceChildren(link, root);
+    this.#root.replaceChildren(root);
 
     this.#controller = new AbortController();
     const { signal } = this.#controller;

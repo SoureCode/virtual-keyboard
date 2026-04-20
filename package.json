@@ -1,6 +1,6 @@
 {
   "name": "@sourecode/virtual-keyboard",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "type": "module",
   "license": "MIT",
   "homepage": "https://github.com/SoureCode/virtual-keyboard#readme",
@@ -18,8 +18,7 @@
     ".": {
       "types": "./dist/virtual-keyboard.d.ts",
       "import": "./dist/virtual-keyboard.js"
-    },
-    "./style.css": "./dist/virtual-keyboard.css"
+    }
   },
   "files": [
     "dist",

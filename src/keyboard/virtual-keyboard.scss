@@ -187,7 +187,9 @@
   border: 0;
   cursor: pointer;
   transition: background-color 80ms ease;
+  touch-action: none;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 
   &:active {
     background: color-mix(in srgb, var(--vk-key-bg) 60%, var(--vk-accent));

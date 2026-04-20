@@ -1,0 +1,105 @@
+:host {
+  --vk-bg: #0f172a;
+  --vk-key-bg: #334155;
+  --vk-key-mod-bg: #1e293b;
+  --vk-key-fg: #f1f5f9;
+  --vk-key-mod-fg: #cbd5e1;
+  --vk-accent: #10b981;
+  --vk-key-radius: 8px;
+  --vk-key-height: 44px;
+  --vk-row-gap: 8px;
+  --vk-col-gap: 6px;
+  --vk-pad-x: 8px;
+  --vk-pad-top: 10px;
+  --vk-pad-bottom: 10px;
+  --vk-font: system-ui, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+
+  display: block;
+  font-family: var(--vk-font);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
+@media (prefers-color-scheme: light) {
+  :host {
+    --vk-bg: #e2e8f0;
+    --vk-key-bg: #f8fafc;
+    --vk-key-mod-bg: #cbd5e1;
+    --vk-key-fg: #0f172a;
+    --vk-key-mod-fg: #1e293b;
+  }
+}
+
+.keyboard {
+  background: var(--vk-bg);
+  padding: var(--vk-pad-top) var(--vk-pad-x) calc(var(--vk-pad-bottom) + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: var(--vk-row-gap);
+}
+
+.row {
+  display: grid;
+  gap: var(--vk-col-gap);
+}
+
+.spacer {
+  pointer-events: none;
+}
+
+.key {
+  min-width: 0;
+  height: var(--vk-key-height);
+  border-radius: var(--vk-key-radius);
+  background: var(--vk-key-bg);
+  color: var(--vk-key-fg);
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+  border: 0;
+  cursor: pointer;
+  transition: background-color 80ms ease, transform 80ms ease;
+  -webkit-tap-highlight-color: transparent;
+
+  &:active {
+    background: color-mix(in srgb, var(--vk-key-bg) 60%, var(--vk-accent));
+    transform: scale(0.97);
+  }
+
+  &.mod {
+    background: var(--vk-key-mod-bg);
+    color: var(--vk-key-mod-fg);
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  &.mod.active {
+    background: var(--vk-accent);
+    color: #ffffff;
+  }
+
+  &.mod.locked {
+    background: var(--vk-accent);
+    color: #ffffff;
+    box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--vk-accent) 60%, #000);
+  }
+
+  &.space {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+}

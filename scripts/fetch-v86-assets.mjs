@@ -15,25 +15,34 @@ import { fileURLToPath } from "node:url";
 
 const HOST = "https://copy.sh/v86/";
 
-const files = [
+const remote = [
   {
     url: HOST + "bios/seabios.bin",
     out: "public/v86/bios/seabios.bin",
+    size: 131072,
     sha256: "73e3f359102e3a9982c35fce98eb7cd08f18303ac7f1ba6ebfbe6cdc1c244d98",
   },
   {
     url: HOST + "bios/vgabios.bin",
     out: "public/v86/bios/vgabios.bin",
+    size: 36352,
     sha256: "a4bc0d80cc3ca028c73dafa8fee396b8d054ce87ebd8abfbd31b06b437607880",
   },
   {
     url: HOST + "images/linux4.iso",
     out: "public/v86/images/linux.iso",
+    size: 7712768,
     sha256: "cb403835be0d857191cdeb86efc8d559b94a787d6fcb57e0a04667296405c223",
   },
 ];
 
+const bundled = [
+  { src: "node_modules/v86/build/v86.wasm", out: "public/v86/build/v86.wasm" },
+  { src: "node_modules/v86/build/v86-fallback.wasm", out: "public/v86/build/v86-fallback.wasm" },
+];
+
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const verify = process.argv.includes("--verify") || process.env.CI === "true";
 
 const sha256 = async (path) => {
   const hash = createHash("sha256");
@@ -41,18 +50,20 @@ const sha256 = async (path) => {
   return hash.digest("hex");
 };
 
-const download = async (url, outRel, expectedHash) => {
-  const out = join(root, outRel);
-  if (existsSync(out) && statSync(out).size > 0) {
-    const actual = await sha256(out);
-    if (actual === expectedHash) {
-      console.log(`✓ cached ${outRel}`);
-      return;
-    }
-    console.warn(`! hash mismatch for cached ${outRel}; re-downloading`);
-    unlinkSync(out);
+const isCached = async (path, size, hash) => {
+  if (!existsSync(path) || statSync(path).size !== size) return false;
+  if (!verify) return true;
+  return (await sha256(path)) === hash;
+};
+
+const fetchOne = async ({ url, out, size, sha256: expected }) => {
+  const abs = join(root, out);
+  if (await isCached(abs, size, expected)) {
+    console.log(`✓ cached ${out}`);
+    return;
   }
-  mkdirSync(dirname(out), { recursive: true });
+  if (existsSync(abs)) unlinkSync(abs);
+  mkdirSync(dirname(abs), { recursive: true });
   console.log(`↓ ${url}`);
   const res = await fetch(url);
   if (!res.ok || !res.body) {
@@ -61,37 +72,45 @@ const download = async (url, outRel, expectedHash) => {
       `${url} → ${res.status} ${res.statusText} ${snippet.slice(0, 120).replace(/\s+/g, " ")}`.trim(),
     );
   }
-  const tmp = out + ".part";
+  const tmp = abs + ".part";
   try {
     await pipeline(res.body, createWriteStream(tmp));
     const actual = await sha256(tmp);
-    if (actual !== expectedHash) {
-      throw new Error(`sha256 mismatch for ${outRel}: got ${actual}, expected ${expectedHash}`);
+    if (actual !== expected) {
+      throw new Error(`sha256 mismatch for ${out}: got ${actual}, expected ${expected}`);
     }
-    renameSync(tmp, out);
+    renameSync(tmp, abs);
   } catch (e) {
     try {
       unlinkSync(tmp);
     } catch {}
     throw e;
   }
-  console.log(`  saved ${outRel} (${statSync(out).size} bytes)`);
+  console.log(`  saved ${out} (${statSync(abs).size} bytes)`);
 };
 
-for (const f of files) {
+const copyOne = ({ src, out }) => {
+  const absSrc = join(root, src);
+  const absOut = join(root, out);
+  const srcSize = statSync(absSrc).size;
+  if (existsSync(absOut) && statSync(absOut).size === srcSize) {
+    console.log(`✓ cached ${out}`);
+    return;
+  }
+  mkdirSync(dirname(absOut), { recursive: true });
+  copyFileSync(absSrc, absOut);
+  console.log(`  copied ${out}`);
+};
+
+let failed = false;
+for (const f of remote) {
   try {
-    await download(f.url, f.out, f.sha256);
+    await fetchOne(f);
   } catch (e) {
     console.error(`failed ${f.url}:`, e.message);
-    process.exitCode = 1;
+    failed = true;
   }
 }
+for (const f of bundled) copyOne(f);
 
-const wasms = ["v86.wasm", "v86-fallback.wasm"];
-for (const name of wasms) {
-  const src = join(root, "node_modules/v86/build", name);
-  const out = join(root, "public/v86/build", name);
-  mkdirSync(dirname(out), { recursive: true });
-  copyFileSync(src, out);
-  console.log(`✓ copied ${name}`);
-}
+if (failed) process.exitCode = 1;

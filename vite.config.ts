@@ -3,7 +3,6 @@ import { defineConfig, type Plugin } from "vite";
 const proxyUri = process.env["VSCODE_PROXY_URI"];
 const proxyUrl = proxyUri?.replace("{{port}}", "5173").replace(/\/$/, "");
 const parsed = proxyUrl ? new URL(proxyUrl) : undefined;
-const base = parsed ? `${parsed.pathname}/` : "/";
 
 const reinstateBase = (base: string): Plugin => ({
   name: "reinstate-stripped-base",
@@ -19,23 +18,32 @@ const reinstateBase = (base: string): Plugin => ({
   },
 });
 
-export default defineConfig({
-  base,
-  plugins: [reinstateBase(base)],
-  server: {
-    host: true,
-    port: 5173,
-    strictPort: true,
-    allowedHosts: true,
-    ...(parsed
-      ? {
-          hmr: {
-            host: parsed.hostname,
-            clientPort: 443,
-            protocol: "wss",
-            path: base,
-          },
-        }
-      : {}),
-  },
+export default defineConfig(({ command }) => {
+  if (command === "build") {
+    return {
+      base: process.env["BASE_PATH"] ?? "/",
+    };
+  }
+
+  const base = parsed ? `${parsed.pathname}/` : "/";
+  return {
+    base,
+    plugins: [reinstateBase(base)],
+    server: {
+      host: true,
+      port: 5173,
+      strictPort: true,
+      allowedHosts: true,
+      ...(parsed
+        ? {
+            hmr: {
+              host: parsed.hostname,
+              clientPort: 443,
+              protocol: "wss",
+              path: base,
+            },
+          }
+        : {}),
+    },
+  };
 });

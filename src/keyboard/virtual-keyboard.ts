@@ -35,6 +35,42 @@ type Press = {
 const DEFAULT_LOCALE: Locale = "en";
 const DOUBLE_TAP_MS = 300;
 const LONG_PRESS_MS = 350;
+const REPEAT_INITIAL_MS = 450;
+const REPEAT_INTERVAL_MS = 35;
+
+const attachRepeat = (btn: HTMLElement, fire: () => boolean | void): void => {
+  let initial: number | null = null;
+  let interval: number | null = null;
+  const stop = (): void => {
+    if (initial !== null) clearTimeout(initial);
+    if (interval !== null) clearInterval(interval);
+    initial = null;
+    interval = null;
+  };
+  const run = (): void => {
+    if (fire() === false) stop();
+  };
+  btn.addEventListener("pointerdown", () => {
+    stop();
+    if (fire() === false) return;
+    initial = window.setTimeout(() => {
+      initial = null;
+      interval = window.setInterval(run, REPEAT_INTERVAL_MS);
+    }, REPEAT_INITIAL_MS);
+  });
+  btn.addEventListener("pointerup", stop);
+  btn.addEventListener("pointercancel", stop);
+  btn.addEventListener("pointerleave", stop);
+};
+
+const isRepeatableKey = (key: Key): boolean => {
+  const k = key.action.kind;
+  return k === "char" || k === "space" || k === "return" || k === "backspace";
+};
+
+const isRepeatableTopbar = (action: TopbarKey["action"]): boolean => {
+  return action.kind === "cursor" || action.kind === "tab" || action.kind === "deleteForward";
+};
 
 export class VirtualKeyboard extends HTMLElement {
   static observedAttributes = ["locale"];
@@ -131,49 +167,62 @@ export class VirtualKeyboard extends HTMLElement {
       if (s === "armed") btn.classList.add("active");
       if (s === "locked") btn.classList.add("locked");
     }
-    let startX = 0;
-    let startY = 0;
-    let moved = false;
-    btn.addEventListener("pointerdown", (e) => {
-      startX = e.clientX;
-      startY = e.clientY;
-      moved = false;
-    });
-    btn.addEventListener("pointermove", (e) => {
-      if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) moved = true;
-    });
-    btn.addEventListener("pointerup", () => {
-      if (!moved) this.#handleTopbar(key);
-    });
+    if (isRepeatableTopbar(key.action)) {
+      attachRepeat(btn, (): boolean | void => this.#handleTopbar(key));
+    } else {
+      let startX = 0;
+      let startY = 0;
+      let moved = false;
+      btn.addEventListener("pointerdown", (e) => {
+        startX = e.clientX;
+        startY = e.clientY;
+        moved = false;
+      });
+      btn.addEventListener("pointermove", (e) => {
+        if (Math.abs(e.clientX - startX) > 5 || Math.abs(e.clientY - startY) > 5) moved = true;
+      });
+      btn.addEventListener("pointerup", () => {
+        if (!moved) this.#handleTopbar(key);
+      });
+    }
     return btn;
   }
 
-  #handleTopbar(key: TopbarKey): void {
+  #handleTopbar(key: TopbarKey): boolean {
     const a = key.action;
     switch (a.kind) {
       case "escape":
         this.#adapter.execute({ kind: "escape" });
-        return;
+        return true;
       case "tab":
         this.#emitWithModifiers("tab", null);
-        return;
+        return true;
       case "function":
         this.#adapter.execute({ kind: "function", n: a.n });
         this.#clearStickyModifiers();
-        return;
-      case "cursor":
-        this.#adapter.execute({ kind: "moveCursor", direction: a.direction });
+        return true;
+      case "cursor": {
+        const mods = this.#state.modifiers;
+        const withCtrl = mods.has("ctrl");
+        const withShift = mods.has("shift");
+        this.#adapter.execute({
+          kind: "moveCursor",
+          direction: a.direction,
+          word: withCtrl,
+          select: withShift,
+        });
         this.#clearStickyModifiers();
-        return;
+        return !withCtrl;
+      }
       case "insert":
         this.#adapter.execute({ kind: "raw", data: "\x1b[2~" });
-        return;
+        return true;
       case "deleteForward":
         this.#adapter.execute({ kind: "deleteForward" });
-        return;
+        return true;
       case "modifier":
         this.#toggleModifier(a.modifier);
-        return;
+        return false;
     }
   }
 
@@ -336,12 +385,19 @@ export class VirtualKeyboard extends HTMLElement {
       if (this.#state.shift === "locked") btn.classList.add("locked");
     }
     btn.textContent = this.#displayLabel(key);
-    if (key.alternates && key.alternates.length > 0) btn.dataset.hasAlts = "true";
+    const hasAlts = !!(key.alternates && key.alternates.length > 0);
+    if (hasAlts) btn.dataset.hasAlts = "true";
 
-    btn.addEventListener("pointerdown", (e) => this.#onPointerDown(e, key, btn));
-    btn.addEventListener("pointermove", (e) => this.#onPointerMove(e));
-    btn.addEventListener("pointerup", (e) => this.#onPointerUp(e));
-    btn.addEventListener("pointercancel", () => this.#cancelPress());
+    if (hasAlts) {
+      btn.addEventListener("pointerdown", (e) => this.#onPointerDown(e, key, btn));
+      btn.addEventListener("pointermove", (e) => this.#onPointerMove(e));
+      btn.addEventListener("pointerup", (e) => this.#onPointerUp(e));
+      btn.addEventListener("pointercancel", () => this.#cancelPress());
+    } else if (isRepeatableKey(key)) {
+      attachRepeat(btn, () => this.#handle(key));
+    } else {
+      btn.addEventListener("pointerdown", () => this.#handle(key));
+    }
     return btn;
   }
 

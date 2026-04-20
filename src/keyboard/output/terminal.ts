@@ -20,6 +20,13 @@ const DEFAULT_CURSOR: Record<CursorDirection, string> = {
   pageDown: "\x1b[6~",
 };
 
+const WORD_CURSOR: Partial<Record<CursorDirection, string>> = {
+  up: "\x1b[1;5A",
+  down: "\x1b[1;5B",
+  right: "\x1b[1;5C",
+  left: "\x1b[1;5D",
+};
+
 const FUNCTION_KEYS: Record<number, string> = {
   1: "\x1bOP",
   2: "\x1bOQ",
@@ -76,7 +83,11 @@ export const terminalAdapter = (
           send(deleteSeq);
           return;
         case "moveCursor":
-          send(cursor[action.direction]);
+          if (action.word && WORD_CURSOR[action.direction]) {
+            send(WORD_CURSOR[action.direction]!);
+          } else {
+            send(cursor[action.direction]);
+          }
           return;
         case "escape":
           send("\x1b");

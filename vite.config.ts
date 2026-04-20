@@ -1,4 +1,7 @@
+import { resolve } from "node:path";
 import { defineConfig, type Plugin } from "vite";
+
+const here = import.meta.dirname;
 
 const proxyUri = process.env["VSCODE_PROXY_URI"];
 const proxyUrl = proxyUri?.replace("{{port}}", "5173").replace(/\/$/, "");
@@ -19,8 +22,8 @@ const reinstateBase = (base: string): Plugin => ({
 });
 
 const common = {
-  root: "src",
-  publicDir: "../public",
+  root: resolve(here, "src"),
+  publicDir: resolve(here, "public"),
 } as const;
 
 export default defineConfig(({ command }) => {
@@ -29,12 +32,12 @@ export default defineConfig(({ command }) => {
       ...common,
       base: process.env["BASE_PATH"] ?? "/",
       build: {
-        outDir: "../dist",
+        outDir: resolve(here, "dist"),
         emptyOutDir: true,
         rollupOptions: {
           input: {
-            main: "src/index.html",
-            linux: "src/linux.html",
+            main: resolve(here, "src/index.html"),
+            linux: resolve(here, "src/linux.html"),
           },
         },
       },

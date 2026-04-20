@@ -5,24 +5,9 @@ import { LigaturesAddon } from "@xterm/addon-ligatures";
 import { ProgressAddon } from "@xterm/addon-progress";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
-// @ts-expect-error — v86 ships no types
-import V86 from "v86";
+import V86, { type V86Listener } from "v86";
 import "./keyboard/virtual-keyboard";
 import { terminalAdapter } from "./keyboard/output";
-
-type V86Listener = (...args: unknown[]) => void;
-
-type V86Instance = {
-  add_listener(event: string, cb: V86Listener): void;
-  remove_listener(event: string, cb: V86Listener): void;
-  serial0_send(data: string): void;
-  stop(): Promise<void>;
-  restart(): void;
-};
-
-type V86Ctor = new (options: Record<string, unknown>) => V86Instance;
-
-const V86Constructor = V86 as V86Ctor;
 
 const HOST = import.meta.env.BASE_URL + "v86/";
 
@@ -65,7 +50,7 @@ const setStatus = (text: string): void => {
 term.writeln("\x1b[1;36mLinux on v86\x1b[0m — x86 emulator in WebAssembly");
 term.writeln("Booting from linux4.iso (busybox)…\r\n");
 
-const emulator = new V86Constructor({
+const emulator = new V86({
   wasm_path: HOST + "build/v86.wasm",
   memory_size: 128 * 1024 * 1024,
   vga_memory_size: 2 * 1024 * 1024,

@@ -18,15 +18,32 @@ const reinstateBase = (base: string): Plugin => ({
   },
 });
 
+const common = {
+  root: "src",
+  publicDir: "../public",
+} as const;
+
 export default defineConfig(({ command }) => {
   if (command === "build") {
     return {
+      ...common,
       base: process.env["BASE_PATH"] ?? "/",
+      build: {
+        outDir: "../dist",
+        emptyOutDir: true,
+        rollupOptions: {
+          input: {
+            main: "src/index.html",
+            linux: "src/linux.html",
+          },
+        },
+      },
     };
   }
 
   const base = parsed ? `${parsed.pathname}/` : "/";
   return {
+    ...common,
     base,
     plugins: [reinstateBase(base)],
     server: {

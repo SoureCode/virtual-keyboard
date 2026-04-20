@@ -1,5 +1,6 @@
 node_modules
 dist
 .vite
+public/v86/
 *.log
 .DS_Store

@@ -30,6 +30,11 @@ jobs:
 
       - run: npm ci
 
+      - uses: actions/cache@v4
+        with:
+          path: public/v86
+          key: v86-assets-${{ hashFiles('scripts/fetch-v86-assets.mjs') }}
+
       - run: npm run build
         env:
           BASE_PATH: ${{ steps.pages.outputs.base_path }}

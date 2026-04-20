@@ -4,14 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "npm run fetch-v86 && vite",
+    "build": "npm run fetch-v86 && tsc && vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "fetch-v86": "node scripts/fetch-v86-assets.mjs"
   },
   "devDependencies": {
+    "@xterm/xterm": "^6.0.0",
     "sass": "^1.99.0",
     "typescript": "^6.0.3",
+    "v86": "^0.5.330",
     "vite": "^8.0.8"
   }
 }

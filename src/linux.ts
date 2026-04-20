@@ -1,7 +1,6 @@
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { ClipboardAddon } from "@xterm/addon-clipboard";
-import { LigaturesAddon } from "@xterm/addon-ligatures";
 import { ProgressAddon } from "@xterm/addon-progress";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
@@ -13,7 +12,6 @@ const HOST = import.meta.env.BASE_URL + "v86/";
 
 const term = new Terminal({
   cursorBlink: true,
-  allowProposedApi: true,
   fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
   fontSize: 14,
   theme: {
@@ -33,7 +31,6 @@ const host = document.getElementById("term")!;
 term.open(host);
 term.textarea?.setAttribute("inputmode", "none");
 fit.fit();
-term.loadAddon(new LigaturesAddon());
 
 const ro = new ResizeObserver(() => {
   try {

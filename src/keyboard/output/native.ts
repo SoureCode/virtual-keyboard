@@ -7,7 +7,10 @@ const isEditable = (el: Element | null): el is HTMLElement =>
   el instanceof HTMLElement && el.isContentEditable;
 
 const activeTarget = (): HTMLElement | null => {
-  const el = document.activeElement;
+  let el: Element | null = document.activeElement;
+  while (el instanceof HTMLElement && el.shadowRoot?.activeElement) {
+    el = el.shadowRoot.activeElement;
+  }
   return isTextField(el) || isEditable(el) ? el : null;
 };
 
@@ -29,7 +32,8 @@ const insertText = (el: HTMLElement, text: string): void => {
     if (!sel || sel.rangeCount === 0) return;
     const range = sel.getRangeAt(0);
     range.deleteContents();
-    const node = text === "\n" ? document.createElement("br") : document.createTextNode(text);
+    const doc = el.ownerDocument;
+    const node = text === "\n" ? doc.createElement("br") : doc.createTextNode(text);
     range.insertNode(node);
     range.setStartAfter(node);
     range.collapse(true);

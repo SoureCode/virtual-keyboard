@@ -93,6 +93,7 @@ export class VirtualKeyboard extends HTMLElement {
     "long-press-ms",
     "repeat-initial-ms",
     "repeat-interval-ms",
+    "haptic",
   ];
 
   #state: State = {
@@ -111,6 +112,8 @@ export class VirtualKeyboard extends HTMLElement {
   #longPressMs = DEFAULT_LONG_PRESS_MS;
   #repeatInitialMs = DEFAULT_REPEAT_INITIAL_MS;
   #repeatIntervalMs = DEFAULT_REPEAT_INTERVAL_MS;
+  #hapticEnabled = true;
+  #hapticSwitch: HTMLLabelElement | null = null;
 
   constructor() {
     super();
@@ -137,6 +140,10 @@ export class VirtualKeyboard extends HTMLElement {
       this.#state.layer = "letters";
       this.#state.shift = "off";
       if (this.isConnected) this.#render();
+      return;
+    }
+    if (name === "haptic") {
+      this.#hapticEnabled = value !== "off" && value !== "false";
       return;
     }
     const parsed = value === null ? NaN : Number(value);
@@ -185,14 +192,21 @@ export class VirtualKeyboard extends HTMLElement {
 
     this.#controller = new AbortController();
     const { signal } = this.#controller;
-    const swallowFocusUnlessTopbar = (e: Event): void => {
+    this.#setupHaptics();
+    const onHostPointerDown = (e: Event): void => {
+      const target = e.target as HTMLElement | null;
+      if (target?.closest(".key, .tb-key")) this.#haptic();
+      if (target?.closest(".topbar")) return;
+      e.preventDefault();
+    };
+    const swallowFocus = (e: Event): void => {
       const target = e.target as HTMLElement | null;
       if (target?.closest(".topbar")) return;
       e.preventDefault();
     };
     const host = this.#root.querySelector(".vk");
-    host?.addEventListener("pointerdown", swallowFocusUnlessTopbar, { signal });
-    host?.addEventListener("mousedown", swallowFocusUnlessTopbar, { signal });
+    host?.addEventListener("pointerdown", onHostPointerDown, { signal });
+    host?.addEventListener("mousedown", swallowFocus, { signal });
     this.#renderTopbar();
     this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
     this.#render();
@@ -202,6 +216,36 @@ export class VirtualKeyboard extends HTMLElement {
     this.#controller?.abort();
     this.#controller = null;
     this.#cancelPress();
+    this.#hapticSwitch?.remove();
+    this.#hapticSwitch = null;
+  }
+
+  #setupHaptics(): void {
+    if ("vibrate" in navigator) return;
+    const input = document.createElement("input");
+    input.type = "checkbox";
+    input.setAttribute("switch", "");
+    input.tabIndex = -1;
+    const label = document.createElement("label");
+    label.setAttribute("aria-hidden", "true");
+    label.style.cssText =
+      "position:absolute;left:-9999px;width:1px;height:1px;pointer-events:none;opacity:0;";
+    label.appendChild(input);
+    this.#root.appendChild(label);
+    this.#hapticSwitch = label;
+  }
+
+  #haptic(): void {
+    if (!this.#hapticEnabled) return;
+    try {
+      if ("vibrate" in navigator) {
+        navigator.vibrate(8);
+        return;
+      }
+      this.#hapticSwitch?.click();
+    } catch {
+      // haptics are a best-effort affordance; any failure is silent.
+    }
   }
 
   #renderTopbar(): void {

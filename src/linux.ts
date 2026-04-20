@@ -70,8 +70,39 @@ const listen = (event: string, cb: V86Listener): void => {
   listeners.push([event, cb]);
 };
 
+let slowWatch: number | null = window.setTimeout(() => {
+  slowWatch = null;
+  setStatus("still booting…");
+}, 30_000);
+let failWatch: number | null = window.setTimeout(() => {
+  failWatch = null;
+  setStatus("boot timed out — open console");
+  term.writeln("\r\n\x1b[31mBoot timed out. Open the browser console for details.\x1b[0m");
+}, 60_000);
+const clearWatchdogs = (): void => {
+  if (slowWatch !== null) clearTimeout(slowWatch);
+  if (failWatch !== null) clearTimeout(failWatch);
+  slowWatch = failWatch = null;
+};
+
+const showError = (msg: string): void => {
+  setStatus(`error: ${msg}`);
+  term.writeln(`\r\n\x1b[31m${msg}\x1b[0m`);
+  clearWatchdogs();
+};
+const onError = (e: ErrorEvent): void => showError(e.message || String(e.error));
+const onRejection = (e: PromiseRejectionEvent): void => {
+  const r = e.reason as { message?: string } | string | undefined;
+  showError(typeof r === "string" ? r : r?.message ?? String(r));
+};
+window.addEventListener("error", onError);
+window.addEventListener("unhandledrejection", onRejection);
+
 listen("emulator-ready", () => setStatus("ready"));
-listen("emulator-started", () => setStatus("running"));
+listen("emulator-started", () => {
+  setStatus("running");
+  clearWatchdogs();
+});
 listen("download-progress", (e) => {
   const p = e as { loaded: number; total?: number; file_name?: string };
   if (p.total) {
@@ -98,6 +129,9 @@ term.focus();
 window.addEventListener(
   "beforeunload",
   () => {
+    clearWatchdogs();
+    window.removeEventListener("error", onError);
+    window.removeEventListener("unhandledrejection", onRejection);
     ro.disconnect();
     for (const [event, cb] of listeners) emulator.remove_listener(event, cb);
     term.dispose();

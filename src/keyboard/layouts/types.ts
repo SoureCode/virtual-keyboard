@@ -13,6 +13,7 @@ export type Key = {
   flex?: number;
   wide?: boolean;
   fill?: boolean;
+  alternates?: string[];
 };
 
 export type LayerId = "letters" | "numbers" | "symbols";

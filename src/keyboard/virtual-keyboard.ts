@@ -17,8 +17,20 @@ type State = {
   shift: ShiftState;
 };
 
+type Press = {
+  key: Key;
+  button: HTMLButtonElement;
+  pointerId: number;
+  timer: number | null;
+  popover: HTMLElement | null;
+  alts: HTMLButtonElement[];
+  selectedIndex: number;
+  committed: boolean;
+};
+
 const DEFAULT_LOCALE: Locale = "en";
 const DOUBLE_TAP_MS = 300;
+const LONG_PRESS_MS = 350;
 
 export class VirtualKeyboard extends HTMLElement {
   static observedAttributes = ["locale"];
@@ -27,6 +39,7 @@ export class VirtualKeyboard extends HTMLElement {
   #root: ShadowRoot;
   #lastShiftTap = 0;
   #adapter: OutputAdapter = nativeAdapter();
+  #press: Press | null = null;
 
   constructor() {
     super();
@@ -151,7 +164,12 @@ export class VirtualKeyboard extends HTMLElement {
       if (this.#state.shift === "locked") btn.classList.add("locked");
     }
     btn.textContent = this.#displayLabel(key);
-    btn.addEventListener("pointerdown", () => this.#handle(key));
+    if (key.alternates && key.alternates.length > 0) btn.dataset.hasAlts = "true";
+
+    btn.addEventListener("pointerdown", (e) => this.#onPointerDown(e, key, btn));
+    btn.addEventListener("pointermove", (e) => this.#onPointerMove(e));
+    btn.addEventListener("pointerup", (e) => this.#onPointerUp(e));
+    btn.addEventListener("pointercancel", () => this.#cancelPress());
     return btn;
   }
 
@@ -165,18 +183,146 @@ export class VirtualKeyboard extends HTMLElement {
     return key.label;
   }
 
+  #onPointerDown(e: PointerEvent, key: Key, btn: HTMLButtonElement): void {
+    if (this.#press) this.#cancelPress();
+    const hasAlts = !!(key.alternates && key.alternates.length > 0);
+    if (!hasAlts) {
+      this.#handle(key);
+      return;
+    }
+    btn.setPointerCapture(e.pointerId);
+    const press: Press = {
+      key,
+      button: btn,
+      pointerId: e.pointerId,
+      timer: null,
+      popover: null,
+      alts: [],
+      selectedIndex: 0,
+      committed: false,
+    };
+    press.timer = window.setTimeout(() => this.#openPopover(), LONG_PRESS_MS);
+    this.#press = press;
+  }
+
+  #onPointerMove(e: PointerEvent): void {
+    const p = this.#press;
+    if (!p || !p.popover) return;
+    const hit = this.#root.elementFromPoint(e.clientX, e.clientY);
+    const idx = p.alts.findIndex((a) => a === hit);
+    if (idx >= 0 && idx !== p.selectedIndex) {
+      p.alts[p.selectedIndex]?.classList.remove("active");
+      p.alts[idx]?.classList.add("active");
+      p.selectedIndex = idx;
+    }
+  }
+
+  #onPointerUp(_e: PointerEvent): void {
+    const p = this.#press;
+    if (!p) return;
+    if (p.timer !== null) {
+      clearTimeout(p.timer);
+      p.timer = null;
+    }
+    if (p.popover) {
+      const alts = p.key.alternates ?? [];
+      const choice = alts[p.selectedIndex] ?? p.key.label;
+      this.#emitChar(choice);
+      this.#closePopover();
+    } else if (!p.committed) {
+      this.#handle(p.key);
+    }
+    this.#press = null;
+  }
+
+  #cancelPress(): void {
+    const p = this.#press;
+    if (!p) return;
+    if (p.timer !== null) clearTimeout(p.timer);
+    if (p.popover) this.#closePopover();
+    this.#press = null;
+  }
+
+  #openPopover(): void {
+    const p = this.#press;
+    if (!p || !p.key.alternates) return;
+    const alts = p.key.alternates;
+    const upper = this.#state.shift !== "off" && this.#state.layer === "letters";
+
+    const popover = document.createElement("div");
+    popover.className = "popover";
+    popover.setAttribute("role", "listbox");
+
+    const altButtons: HTMLButtonElement[] = alts.map((alt, i) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "alt";
+      b.dataset.idx = String(i);
+      b.textContent = upper ? alt.toUpperCase() : alt;
+      popover.append(b);
+      return b;
+    });
+    altButtons[0]?.classList.add("active");
+
+    const container = this.#root.querySelector(".keyboard");
+    container?.append(popover);
+    this.#positionPopover(popover, p.button);
+
+    p.popover = popover;
+    p.alts = altButtons;
+    p.selectedIndex = 0;
+  }
+
+  #positionPopover(popover: HTMLElement, anchor: HTMLButtonElement): void {
+    const anchorRect = anchor.getBoundingClientRect();
+    popover.style.minWidth = `${anchorRect.width}px`;
+
+    const margin = 4;
+    const vw = document.documentElement.clientWidth;
+    const vh = document.documentElement.clientHeight;
+    const popRect = popover.getBoundingClientRect();
+    const gap = 6;
+
+    const preferredTop = anchorRect.top - popRect.height - gap;
+    const top =
+      preferredTop >= margin
+        ? preferredTop
+        : Math.min(anchorRect.bottom + gap, vh - popRect.height - margin);
+
+    const preferredLeft = anchorRect.left + anchorRect.width / 2 - popRect.width / 2;
+    const left = Math.max(
+      margin,
+      Math.min(preferredLeft, vw - popRect.width - margin),
+    );
+
+    popover.style.left = `${left}px`;
+    popover.style.top = `${Math.max(margin, top)}px`;
+  }
+
+  #closePopover(): void {
+    const p = this.#press;
+    p?.popover?.remove();
+    if (p) {
+      p.popover = null;
+      p.alts = [];
+    }
+  }
+
+  #emitChar(value: string): void {
+    const upper = this.#state.shift !== "off" && this.#state.layer === "letters";
+    this.#emit(upper ? value.toUpperCase() : value);
+    if (this.#state.shift === "on") {
+      this.#state.shift = "off";
+      this.#render();
+    }
+  }
+
   #handle(key: Key): void {
     const a = key.action;
     switch (a.kind) {
-      case "char": {
-        const upper = this.#state.shift !== "off" && this.#state.layer === "letters";
-        this.#emit(upper ? a.value.toUpperCase() : a.value);
-        if (this.#state.shift === "on") {
-          this.#state.shift = "off";
-          this.#render();
-        }
+      case "char":
+        this.#emitChar(a.value);
         break;
-      }
       case "space":
         this.#emit(" ");
         break;

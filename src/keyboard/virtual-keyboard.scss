@@ -35,11 +35,45 @@
 }
 
 .keyboard {
+  position: relative;
   background: var(--vk-bg);
   padding: var(--vk-pad-top) var(--vk-pad-x) calc(var(--vk-pad-bottom) + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   gap: var(--vk-row-gap);
+}
+
+.popover {
+  position: fixed;
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  padding: 6px;
+  background: var(--vk-key-bg);
+  border-radius: var(--vk-key-radius);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}
+
+.alt {
+  min-width: var(--vk-key-height);
+  height: var(--vk-key-height);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--vk-key-fg);
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  border: 0;
+  padding: 0 8px;
+  pointer-events: auto;
+  cursor: pointer;
+
+  &.active {
+    background: var(--vk-accent);
+    color: #ffffff;
+  }
 }
 
 .row {

@@ -1,7 +1,13 @@
 import type { Key, Layer } from "./types";
+import { alternates } from "./alternates";
 
 export const row = (chars: string): Key[] =>
-  [...chars].map((c) => ({ label: c, action: { kind: "char", value: c } }));
+  [...chars].map((c) => {
+    const key: Key = { label: c, action: { kind: "char", value: c } };
+    const alts = alternates[c.toLowerCase()];
+    if (alts) key.alternates = alts;
+    return key;
+  });
 
 export const bottomRow = (
   leftLabel: string,

@@ -7,7 +7,6 @@ import { WebLinksAddon } from "@xterm/addon-web-links";
 import "@xterm/xterm/css/xterm.css";
 // @ts-expect-error — v86 ships no types
 import V86 from "v86";
-import wasmUrl from "v86/build/v86.wasm?url";
 import "./keyboard/virtual-keyboard";
 import { terminalAdapter } from "./keyboard/output";
 
@@ -44,6 +43,7 @@ term.loadAddon(new WebLinksAddon());
 
 const host = document.getElementById("term")!;
 term.open(host);
+term.textarea?.setAttribute("inputmode", "none");
 fit.fit();
 term.loadAddon(new LigaturesAddon());
 
@@ -63,9 +63,9 @@ term.writeln("\x1b[1;36mLinux on v86\x1b[0m — x86 emulator in WebAssembly");
 term.writeln("Booting from linux4.iso (busybox)…\r\n");
 
 const emulator = new V86Constructor({
-  wasm_path: wasmUrl,
-  memory_size: 512 * 1024 * 1024,
-  vga_memory_size: 8 * 1024 * 1024,
+  wasm_path: HOST + "build/v86.wasm",
+  memory_size: 128 * 1024 * 1024,
+  vga_memory_size: 2 * 1024 * 1024,
   bios: { url: HOST + "bios/seabios.bin" },
   vga_bios: { url: HOST + "bios/vgabios.bin" },
   cdrom: { url: HOST + "images/linux.iso" },

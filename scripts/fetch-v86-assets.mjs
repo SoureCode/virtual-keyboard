@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { copyFileSync, createWriteStream, existsSync, mkdirSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { fileURLToPath } from "node:url";
@@ -34,4 +34,13 @@ for (const f of files) {
     console.error(`failed ${f.url}:`, e.message);
     process.exitCode = 1;
   }
+}
+
+const wasms = ["v86.wasm", "v86-fallback.wasm"];
+for (const name of wasms) {
+  const src = join(root, "node_modules/v86/build", name);
+  const out = join(root, "public/v86/build", name);
+  mkdirSync(dirname(out), { recursive: true });
+  copyFileSync(src, out);
+  console.log(`✓ copied ${name}`);
 }

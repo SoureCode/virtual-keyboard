@@ -39,7 +39,6 @@ The element bundles its own styles and adopts them into its shadow root on conne
 - Sticky modifiers — `Ctrl` / `Alt` arm for one-shot; double-tap to lock. `Ctrl+Arrow` / `Alt+Arrow` jumps by word and doesn't auto-repeat
 - Text selection via `Shift+Arrow`, `Shift+Ctrl+Arrow` (word), and `Shift+Home/End/PgUp/PgDn` — shift stays active across presses so selection keeps extending
 - Hold-to-repeat for character keys, space, backspace, and arrow-cluster keys (≈33 keys/sec after a 300 ms delay, tunable via `repeat-initial-ms` / `repeat-interval-ms`)
-- Optional haptic feedback via `navigator.vibrate` — `haptics="auto"` (default, touch only), `"on"` (always), or `"off"`. Silently no-ops where the API is missing.
 - Arrow keys preserve the desired text column across up/down (native-editor behaviour)
 - Click-through focus: tapping any key never moves focus away from the editor
 - Output adapters:

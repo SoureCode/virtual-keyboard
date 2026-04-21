@@ -518,10 +518,6 @@ export class VirtualKeyboard extends HTMLElement {
       }
     }
 
-    const controller = new AbortController();
-    btn.addEventListener("pointermove", (ev) => this.#onPointerMove(ev), {
-      signal: controller.signal,
-    });
     const press: Press = {
       key,
       button: btn,
@@ -533,22 +529,21 @@ export class VirtualKeyboard extends HTMLElement {
       committed: committedChar !== null,
       committedChar,
       upperAtDown,
-      controller,
+      controller: new AbortController(),
     };
     press.timer = window.setTimeout(() => this.#openPopover(), this.#longPressMs);
     this.#press = press;
   }
 
-  #onPointerMove(e: PointerEvent): void {
+  #trackAltsAt(clientX: number, clientY: number): void {
     const p = this.#press;
     if (!p || !p.popover) return;
-    const hit = this.#root.elementFromPoint(e.clientX, e.clientY);
+    const hit = this.#root.elementFromPoint(clientX, clientY);
     const idx = p.alts.findIndex((a) => a === hit);
-    if (idx >= 0 && idx !== p.selectedIndex) {
-      p.alts[p.selectedIndex]?.classList.remove("active");
-      p.alts[idx]?.classList.add("active");
-      p.selectedIndex = idx;
-    }
+    if (idx < 0 || idx === p.selectedIndex) return;
+    p.alts[p.selectedIndex]?.classList.remove("active");
+    p.alts[idx]?.classList.add("active");
+    p.selectedIndex = idx;
   }
 
   #onPointerUp(_e: PointerEvent): void {
@@ -616,6 +611,30 @@ export class VirtualKeyboard extends HTMLElement {
     p.popover = popover;
     p.alts = altButtons;
     p.selectedIndex = 0;
+
+    let pendingX = 0;
+    let pendingY = 0;
+    let rafId = 0;
+    const flush = (): void => {
+      rafId = 0;
+      this.#trackAltsAt(pendingX, pendingY);
+    };
+    p.button.addEventListener(
+      "pointermove",
+      (ev) => {
+        pendingX = ev.clientX;
+        pendingY = ev.clientY;
+        if (rafId === 0) rafId = requestAnimationFrame(flush);
+      },
+      { signal: p.controller.signal },
+    );
+    p.controller.signal.addEventListener(
+      "abort",
+      () => {
+        if (rafId !== 0) cancelAnimationFrame(rafId);
+      },
+      { once: true },
+    );
   }
 
   #positionPopover(popover: HTMLElement, anchor: HTMLButtonElement): void {

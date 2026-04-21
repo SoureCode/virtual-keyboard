@@ -750,7 +750,9 @@ export class VirtualKeyboard extends HTMLElement {
 
   #positionPopover(popover: HTMLElement, anchor: HTMLButtonElement): void {
     const anchorRect = anchor.getBoundingClientRect();
-    popover.style.minWidth = `${anchorRect.width}px`;
+    popover.style.minWidth = popover.classList.contains("preview")
+      ? ""
+      : `${anchorRect.width}px`;
 
     const margin = 4;
     const vw = document.documentElement.clientWidth;

@@ -138,7 +138,7 @@
   pointer-events: none;
 
   &.preview {
-    padding: 4px 6px;
+    padding: 6px 10px;
   }
 }
 
@@ -167,9 +167,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 2px 6px;
+  height: var(--vk-key-height);
+  padding: 0 14px;
   font-family: inherit;
-  font-size: 22px;
+  font-size: 28px;
   font-weight: 500;
   line-height: 1;
   color: var(--vk-key-fg);

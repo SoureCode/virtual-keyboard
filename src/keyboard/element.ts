@@ -38,8 +38,8 @@ type Press = {
 const DEFAULT_LOCALE: Locale = "en";
 const DEFAULT_DOUBLE_TAP_MS = 300;
 const DEFAULT_LONG_PRESS_MS = 350;
-const DEFAULT_REPEAT_INITIAL_MS = 450;
-const DEFAULT_REPEAT_INTERVAL_MS = 35;
+const DEFAULT_REPEAT_INITIAL_MS = 300;
+const DEFAULT_REPEAT_INTERVAL_MS = 30;
 
 /** Hold-to-repeat binder.
  *  `fire` runs once on pointerdown, then every `intervalMs` after `initialMs`

@@ -38,7 +38,7 @@ The element bundles its own styles and adopts them into its shadow root on conne
 - Scrollable two-row topbar with `Esc`, `F1`–`F12`, `Ins` / `Del`, `Home` / `End` / `PgUp` / `PgDn`, `Tab`, `Ctrl` / `Alt`, and arrow keys. Touch inertia + mouse drag + wheel scroll, no scrollbar
 - Sticky modifiers — `Ctrl` / `Alt` arm for one-shot; double-tap to lock. `Ctrl+Arrow` / `Alt+Arrow` jumps by word and doesn't auto-repeat
 - Text selection via `Shift+Arrow`, `Shift+Ctrl+Arrow` (word), and `Shift+Home/End/PgUp/PgDn` — shift stays active across presses so selection keeps extending
-- Hold-to-repeat for character keys, space, backspace, and arrow-cluster keys (≈28 keys/sec after a 450 ms delay)
+- Hold-to-repeat for character keys, space, backspace, and arrow-cluster keys (≈33 keys/sec after a 300 ms delay, tunable via `repeat-initial-ms` / `repeat-interval-ms`)
 - Arrow keys preserve the desired text column across up/down (native-editor behaviour)
 - Click-through focus: tapping any key never moves focus away from the editor
 - Output adapters:

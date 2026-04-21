@@ -44,7 +44,7 @@ export default defineConfig(({ command }) => {
     };
   }
 
-  const base = parsed ? `${parsed.pathname}/` : "/";
+  const base = parsed ? parsed.pathname.replace(/\/?$/, "/") : "/";
   return {
     ...common,
     base,

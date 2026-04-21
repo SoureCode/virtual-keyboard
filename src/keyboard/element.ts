@@ -494,11 +494,14 @@ export class VirtualKeyboard extends HTMLElement {
     const hasAlts = !!(key.alternates && key.alternates.length > 0);
     if (hasAlts) {
       this.#onPointerDown(e, key, btn);
-    } else if (isRepeatableKey(key)) {
+      return;
+    }
+    if (key.action.kind === "char") {
       this.#showSimplePreview(key, btn, e.pointerId);
+    }
+    if (isRepeatableKey(key)) {
       this.#startRepeat(key, e.pointerId);
     } else {
-      this.#showSimplePreview(key, btn, e.pointerId);
       this.#handle(key);
     }
   }
@@ -750,6 +753,11 @@ export class VirtualKeyboard extends HTMLElement {
 
   #positionPopover(popover: HTMLElement, anchor: HTMLButtonElement): void {
     const anchorRect = anchor.getBoundingClientRect();
+    if (popover.classList.contains("preview")) {
+      popover.style.width = `${anchorRect.width}px`;
+    } else {
+      popover.style.width = "";
+    }
 
     const margin = 4;
     const vw = document.documentElement.clientWidth;

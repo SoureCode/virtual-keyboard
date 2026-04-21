@@ -130,6 +130,7 @@
   position: fixed;
   z-index: 10;
   display: flex;
+  justify-content: center;
   gap: 4px;
   padding: 6px;
   background: var(--vk-key-bg);
@@ -138,7 +139,9 @@
   pointer-events: none;
 
   &.preview {
-    padding: 6px 10px;
+    padding: 0;
+    box-sizing: border-box;
+    overflow: hidden;
   }
 }
 
@@ -164,11 +167,11 @@
 }
 
 .preview-key {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
+  width: 100%;
   height: var(--vk-key-height);
-  padding: 0 14px;
   font-family: inherit;
   font-size: 28px;
   font-weight: 500;

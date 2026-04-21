@@ -35,6 +35,13 @@ type Press = {
   controller: AbortController;
 };
 
+type Repeat = {
+  key: Key;
+  pointerId: number;
+  initial: number | null;
+  interval: number | null;
+};
+
 const DEFAULT_LOCALE: Locale = "en";
 const DEFAULT_DOUBLE_TAP_MS = 300;
 const DEFAULT_LONG_PRESS_MS = 350;
@@ -114,6 +121,8 @@ export class VirtualKeyboard extends HTMLElement {
   #longPressMs = DEFAULT_LONG_PRESS_MS;
   #repeatInitialMs = DEFAULT_REPEAT_INITIAL_MS;
   #repeatIntervalMs = DEFAULT_REPEAT_INTERVAL_MS;
+  #keyForButton = new WeakMap<HTMLElement, Key>();
+  #repeat: Repeat | null = null;
 
   constructor() {
     super();
@@ -194,6 +203,12 @@ export class VirtualKeyboard extends HTMLElement {
     const host = this.#root.querySelector(".vk");
     host?.addEventListener("pointerdown", swallowFocusUnlessTopbar, { signal });
     host?.addEventListener("mousedown", swallowFocusUnlessTopbar, { signal });
+
+    const grid = this.#root.querySelector(".keyboard") as HTMLElement | null;
+    grid?.addEventListener("pointerdown", (e) => this.#onGridPointerDown(e), { signal });
+    grid?.addEventListener("pointerup", (e) => this.#onGridPointerUp(e), { signal });
+    grid?.addEventListener("pointercancel", (e) => this.#onGridPointerCancel(e), { signal });
+
     this.#renderTopbar();
     this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
     this.#render();
@@ -203,6 +218,7 @@ export class VirtualKeyboard extends HTMLElement {
     this.#controller?.abort();
     this.#controller = null;
     this.#cancelPress();
+    this.#stopRepeat();
   }
 
   #renderTopbar(): void {
@@ -462,20 +478,54 @@ export class VirtualKeyboard extends HTMLElement {
       if (this.#state.shift === "locked") btn.classList.add("locked");
     }
     btn.textContent = this.#displayLabel(key);
-    const hasAlts = !!(key.alternates && key.alternates.length > 0);
-    if (hasAlts) btn.dataset.hasAlts = "true";
+    if (key.alternates && key.alternates.length > 0) btn.dataset.hasAlts = "true";
 
-    const signal = this.#controller!.signal;
-    if (hasAlts) {
-      btn.addEventListener("pointerdown", (e) => this.#onPointerDown(e, key, btn), { signal });
-      btn.addEventListener("pointerup", (e) => this.#onPointerUp(e), { signal });
-      btn.addEventListener("pointercancel", () => this.#cancelPress(), { signal });
-    } else if (isRepeatableKey(key)) {
-      attachRepeat(btn, () => this.#handle(key), signal, this.#repeatInitialMs, this.#repeatIntervalMs);
-    } else {
-      btn.addEventListener("pointerdown", () => this.#handle(key), { signal });
-    }
+    this.#keyForButton.set(btn, key);
     return btn;
+  }
+
+  #onGridPointerDown(e: PointerEvent): void {
+    const btn = (e.target as Element | null)?.closest(".key") as HTMLButtonElement | null;
+    if (!btn) return;
+    const key = this.#keyForButton.get(btn);
+    if (!key) return;
+    const hasAlts = !!(key.alternates && key.alternates.length > 0);
+    if (hasAlts) {
+      this.#onPointerDown(e, key, btn);
+    } else if (isRepeatableKey(key)) {
+      this.#startRepeat(key, e.pointerId);
+    } else {
+      this.#handle(key);
+    }
+  }
+
+  #onGridPointerUp(e: PointerEvent): void {
+    if (this.#repeat?.pointerId === e.pointerId) this.#stopRepeat();
+    if (this.#press?.pointerId === e.pointerId) this.#onPointerUp(e);
+  }
+
+  #onGridPointerCancel(e: PointerEvent): void {
+    if (this.#repeat?.pointerId === e.pointerId) this.#stopRepeat();
+    if (this.#press?.pointerId === e.pointerId) this.#cancelPress();
+  }
+
+  #startRepeat(key: Key, pointerId: number): void {
+    this.#stopRepeat();
+    this.#handle(key);
+    const r: Repeat = { key, pointerId, initial: null, interval: null };
+    r.initial = window.setTimeout(() => {
+      r.initial = null;
+      r.interval = window.setInterval(() => this.#handle(key), this.#repeatIntervalMs);
+    }, this.#repeatInitialMs);
+    this.#repeat = r;
+  }
+
+  #stopRepeat(): void {
+    const r = this.#repeat;
+    if (!r) return;
+    if (r.initial !== null) clearTimeout(r.initial);
+    if (r.interval !== null) clearInterval(r.interval);
+    this.#repeat = null;
   }
 
   #displayLabel(key: Key): string {

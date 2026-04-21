@@ -123,6 +123,7 @@ export class VirtualKeyboard extends HTMLElement {
   #repeatIntervalMs = DEFAULT_REPEAT_INTERVAL_MS;
   #keyForButton = new WeakMap<HTMLElement, Key>();
   #repeat: Repeat | null = null;
+  #simplePreview: { popover: HTMLElement; pointerId: number } | null = null;
 
   constructor() {
     super();
@@ -219,6 +220,7 @@ export class VirtualKeyboard extends HTMLElement {
     this.#controller = null;
     this.#cancelPress();
     this.#stopRepeat();
+    this.#clearSimplePreview();
   }
 
   #renderTopbar(): void {
@@ -493,8 +495,10 @@ export class VirtualKeyboard extends HTMLElement {
     if (hasAlts) {
       this.#onPointerDown(e, key, btn);
     } else if (isRepeatableKey(key)) {
+      this.#showSimplePreview(key, btn, e.pointerId);
       this.#startRepeat(key, e.pointerId);
     } else {
+      this.#showSimplePreview(key, btn, e.pointerId);
       this.#handle(key);
     }
   }
@@ -502,11 +506,47 @@ export class VirtualKeyboard extends HTMLElement {
   #onGridPointerUp(e: PointerEvent): void {
     if (this.#repeat?.pointerId === e.pointerId) this.#stopRepeat();
     if (this.#press?.pointerId === e.pointerId) this.#onPointerUp(e);
+    if (this.#simplePreview?.pointerId === e.pointerId) this.#clearSimplePreview();
   }
 
   #onGridPointerCancel(e: PointerEvent): void {
     if (this.#repeat?.pointerId === e.pointerId) this.#stopRepeat();
     if (this.#press?.pointerId === e.pointerId) this.#cancelPress();
+    if (this.#simplePreview?.pointerId === e.pointerId) this.#clearSimplePreview();
+  }
+
+  #previewLabel(key: Key): string {
+    const base = this.#displayLabel(key);
+    if (
+      key.action.kind === "char" &&
+      this.#state.shift !== "off" &&
+      this.#state.layer === "letters"
+    ) {
+      return base.toUpperCase();
+    }
+    return base;
+  }
+
+  #showSimplePreview(key: Key, btn: HTMLButtonElement, pointerId: number): void {
+    this.#clearSimplePreview();
+    const label = this.#previewLabel(key);
+    if (!label) return;
+    const popover = document.createElement("div");
+    popover.className = "popover preview";
+    popover.setAttribute("role", "presentation");
+    const bubble = document.createElement("span");
+    bubble.className = "preview-key";
+    bubble.textContent = label;
+    popover.append(bubble);
+    const container = this.#root.querySelector(".keyboard");
+    container?.append(popover);
+    this.#positionPopover(popover, btn);
+    this.#simplePreview = { popover, pointerId };
+  }
+
+  #clearSimplePreview(): void {
+    this.#simplePreview?.popover.remove();
+    this.#simplePreview = null;
   }
 
   #startRepeat(key: Key, pointerId: number): void {
@@ -581,8 +621,26 @@ export class VirtualKeyboard extends HTMLElement {
       upperAtDown,
       controller: new AbortController(),
     };
-    press.timer = window.setTimeout(() => this.#openPopover(), this.#longPressMs);
     this.#press = press;
+
+    if (committedChar !== null) this.#showPreview(committedChar);
+    press.timer = window.setTimeout(() => this.#openPopover(), this.#longPressMs);
+  }
+
+  #showPreview(label: string): void {
+    const p = this.#press;
+    if (!p) return;
+    const popover = document.createElement("div");
+    popover.className = "popover preview";
+    popover.setAttribute("role", "presentation");
+    const bubble = document.createElement("span");
+    bubble.className = "preview-key";
+    bubble.textContent = label;
+    popover.append(bubble);
+    const container = this.#root.querySelector(".keyboard");
+    container?.append(popover);
+    this.#positionPopover(popover, p.button);
+    p.popover = popover;
   }
 
   #trackAltsAt(clientX: number, clientY: number): void {
@@ -603,7 +661,7 @@ export class VirtualKeyboard extends HTMLElement {
       clearTimeout(p.timer);
       p.timer = null;
     }
-    if (p.popover) {
+    if (p.alts.length > 0) {
       const chosen = p.key.alternates?.[p.selectedIndex];
       if (chosen !== undefined) {
         const alternative = p.upperAtDown ? chosen.toUpperCase() : chosen;
@@ -616,10 +674,10 @@ export class VirtualKeyboard extends HTMLElement {
           this.#emitChar(chosen);
         }
       }
-      this.#closePopover();
     } else if (!p.committed) {
       this.#handle(p.key);
     }
+    if (p.popover) this.#closePopover();
     p.controller.abort();
     this.#press = null;
   }
@@ -639,9 +697,10 @@ export class VirtualKeyboard extends HTMLElement {
     const alts = p.key.alternates;
     const upper = p.upperAtDown;
 
-    const popover = document.createElement("div");
+    const popover = p.popover ?? document.createElement("div");
     popover.className = "popover";
     popover.setAttribute("role", "listbox");
+    popover.replaceChildren();
 
     const altButtons: HTMLButtonElement[] = alts.map((alt, i) => {
       const b = document.createElement("button");
@@ -654,8 +713,10 @@ export class VirtualKeyboard extends HTMLElement {
     });
     altButtons[0]?.classList.add("active");
 
-    const container = this.#root.querySelector(".keyboard");
-    container?.append(popover);
+    if (!p.popover) {
+      const container = this.#root.querySelector(".keyboard");
+      container?.append(popover);
+    }
     this.#positionPopover(popover, p.button);
 
     p.popover = popover;

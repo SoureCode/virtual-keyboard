@@ -159,6 +159,21 @@
   }
 }
 
+.preview-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--vk-key-height);
+  height: var(--vk-key-height);
+  padding: 0 8px;
+  font-family: inherit;
+  font-size: 22px;
+  font-weight: 500;
+  line-height: 1;
+  color: var(--vk-key-fg);
+  pointer-events: none;
+}
+
 .row {
   display: grid;
   gap: var(--vk-col-gap);

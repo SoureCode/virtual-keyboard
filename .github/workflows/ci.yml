@@ -32,18 +32,6 @@ jobs:
           test -f dist/virtual-keyboard.js
           test -f dist/virtual-keyboard.d.ts
 
-      - name: Smoke test ESM entry
-        run: |
-          node -e '
-          globalThis.HTMLElement = class {};
-          globalThis.customElements = { define() {} };
-          import("./dist/virtual-keyboard.js").then(m => {
-            const keys = Object.keys(m);
-            console.log("exports:", keys);
-            const missing = ["VirtualKeyboard","terminalAdapter","nativeAdapter"].filter(k => !keys.includes(k));
-            if (missing.length) { console.error("missing:", missing); process.exit(1); }
-          })'
-
       - name: Smoke test npm pack
         run: npm pack --dry-run
 

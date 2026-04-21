@@ -47,6 +47,12 @@ const DEFAULT_DOUBLE_TAP_MS = 300;
 const DEFAULT_LONG_PRESS_MS = 350;
 const DEFAULT_REPEAT_INITIAL_MS = 300;
 const DEFAULT_REPEAT_INTERVAL_MS = 30;
+const DEFAULT_HAPTIC_MS = 5;
+
+type HapticMode = "off" | "auto" | "on";
+const HAPTIC_MODES: readonly HapticMode[] = ["off", "auto", "on"];
+const isHapticMode = (v: string): v is HapticMode =>
+  (HAPTIC_MODES as readonly string[]).includes(v);
 
 /** Hold-to-repeat binder.
  *  `fire` runs once on pointerdown, then every `intervalMs` after `initialMs`
@@ -103,6 +109,7 @@ export class VirtualKeyboard extends HTMLElement {
     "long-press-ms",
     "repeat-initial-ms",
     "repeat-interval-ms",
+    "haptics",
   ];
 
   #state: State = {
@@ -123,6 +130,7 @@ export class VirtualKeyboard extends HTMLElement {
   #repeatIntervalMs = DEFAULT_REPEAT_INTERVAL_MS;
   #keyForButton = new WeakMap<HTMLElement, Key>();
   #repeat: Repeat | null = null;
+  #haptics: HapticMode = "auto";
 
   constructor() {
     super();
@@ -151,6 +159,10 @@ export class VirtualKeyboard extends HTMLElement {
       if (this.isConnected) this.#render();
       return;
     }
+    if (name === "haptics") {
+      this.#haptics = value !== null && isHapticMode(value) ? value : "auto";
+      return;
+    }
     const parsed = value === null ? NaN : Number(value);
     const ms = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
     switch (name) {
@@ -167,6 +179,13 @@ export class VirtualKeyboard extends HTMLElement {
         this.#repeatIntervalMs = ms ?? DEFAULT_REPEAT_INTERVAL_MS;
         return;
     }
+  }
+
+  #hapticTick(pointerType: string): void {
+    if (this.#haptics === "off") return;
+    if (this.#haptics === "auto" && pointerType !== "touch") return;
+    const nav = typeof navigator !== "undefined" ? navigator : null;
+    if (nav && typeof nav.vibrate === "function") nav.vibrate(DEFAULT_HAPTIC_MS);
   }
 
   connectedCallback(): void {
@@ -209,8 +228,19 @@ export class VirtualKeyboard extends HTMLElement {
     grid?.addEventListener("pointerup", (e) => this.#onGridPointerUp(e), { signal });
     grid?.addEventListener("pointercancel", (e) => this.#onGridPointerCancel(e), { signal });
 
+    const topbarEl = this.#root.querySelector(".topbar") as HTMLElement | null;
+    topbarEl?.addEventListener(
+      "pointerdown",
+      (e) => {
+        if ((e.target as Element | null)?.closest(".tb-key")) {
+          this.#hapticTick(e.pointerType);
+        }
+      },
+      { signal },
+    );
+
     this.#renderTopbar();
-    this.#attachDragScroll(this.#root.querySelector(".topbar") as HTMLElement);
+    this.#attachDragScroll(topbarEl as HTMLElement);
     this.#render();
   }
 
@@ -489,6 +519,7 @@ export class VirtualKeyboard extends HTMLElement {
     if (!btn) return;
     const key = this.#keyForButton.get(btn);
     if (!key) return;
+    this.#hapticTick(e.pointerType);
     const hasAlts = !!(key.alternates && key.alternates.length > 0);
     if (hasAlts) {
       this.#onPointerDown(e, key, btn);

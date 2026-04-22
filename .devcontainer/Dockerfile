@@ -1,4 +1,5 @@
-FROM debian:stable-slim
+ARG BASE_IMAGE=ghcr.io/sourecode/devcontainer-base:latest
+FROM ${BASE_IMAGE}
 
 ARG USERNAME
 ARG USER_UID=1000
